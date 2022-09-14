@@ -46,6 +46,12 @@ namespace CustomizableGameofLife
             return ((int)(e.ClientX - rect.Left), (int)(e.ClientY - rect.Top));
         }
 
+        public static int NegDiv (int a, int b)
+        {
+            int res = a / b;
+            return (a < 0 && a != b * res) ? res - 1 : res;
+        }
+
         public static void Main ()
         {
             Document.Body.Style.Margin = "0px";
@@ -82,7 +88,7 @@ namespace CustomizableGameofLife
             {
                 //if ((@event.Buttons & 1) == 0) return;
                 var mousePos = e.MousePos();
-                (int clickX, int clickY) = ((mousePos.x - offsetPos.x) / xMultiplier, (mousePos.y - offsetPos.y) / yMultiplier);
+                (int clickX, int clickY) = (NegDiv(mousePos.x - offsetPos.x, xMultiplier), NegDiv((mousePos.y - offsetPos.y), yMultiplier));
                 if (!Squares.Remove((clickX, clickY)))
                     Squares.Add((clickX, clickY));
                 Draw();
