@@ -292,6 +292,8 @@ namespace CustomizableGameofLife
             };
 
             Global.SetInterval(NextFrame, 100);
+
+            Draw();
         }
 
         public static bool updating = false;
