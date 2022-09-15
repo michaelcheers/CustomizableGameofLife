@@ -1,7 +1,10 @@
-﻿using Bridge.Html5;
+﻿using Bridge;
+using Bridge.Html5;
+using Newtonsoft.Json;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -11,12 +14,68 @@ namespace CustomizableGameofLife
     public static class App
     {
         public const int xMultiplier = 20, yMultiplier = 20;
-        public static int width = Global.Screen.Width / xMultiplier, height = Global.Screen.Height / yMultiplier;
+        public static int screenWidth = Global.Screen.Width, screenHeight = Global.Screen.Height;
+        public static int width = screenWidth / xMultiplier, height = screenHeight / yMultiplier;
+
+        public static HTMLDivElement Hotbar = new HTMLDivElement
+        {
+            Style = {
+                Position = Position.Absolute,
+                Left = "100px",
+                Top = $"{height * yMultiplier - 30}px"
+            }
+        }.Add(ResetButton = new HTMLButtonElement
+        {
+            OnClick = e =>
+            {
+                Squares.Clear();
+                Draw();
+            }
+        }.Add("Reset"));
+
+        public static HTMLDivElement SettingsPopupContainer = new HTMLDivElement
+        {
+            Style =
+            {
+                Position = Position.Fixed,
+                Top = "0",
+                Left = "0",
+                Width = "100%",
+                ["x-index"] = 999999,
+                Height = "100%",
+                BackgroundColor = "rgba(0, 0, 0, 0.5)",
+                Display = Display.None
+            }
+        }
+            .Add(SettingsPopup = new HTMLDivElement
+            {
+                Style =
+                {
+                    FontSize = "1.5rem",
+                    BackgroundColor = "white",
+                    Position = Position.Fixed,
+                    Top = "0px",
+                    Left = "25%",
+                    Width = "50%",
+                    Height = "100%"
+                }
+            });
+
+        public static HTMLDivElement SettingsPopup;
+
+        public static HTMLButtonElement SettingsButton = new HTMLButtonElement
+        {
+            InnerHTML = "⚙",
+            OnClick = e =>
+            {
+
+            }
+        };
 
         public static HTMLButtonElement PlayButton = new HTMLButtonElement
         {
             InnerHTML = "▶",
-            Style = { Color = "green", Position = Position.Absolute, Left = "100px", Top = $"{height * yMultiplier - 30}px", ["user-select"] = "none" },
+            Style = { Color = "green" },
             OnClick = e =>
             {
                 playing = !playing;
@@ -24,12 +83,18 @@ namespace CustomizableGameofLife
                 PlayButton.InnerHTML = playing ? "⏸" : "▶";
             }
         };
+        public static HTMLButtonElement ResetButton;
+
+
         public static bool playing = false;
 
+        public static bool[] livingRules = new bool[9] { false, false, true, true, false, false, false, false, false };
+        public static bool[] deadRules   = new bool[9] { false, false, false, true, false, false, false, false, false };
+
         public static HTMLCanvasElement CreateCanvas ()
-            => new HTMLCanvasElement { Width = Global.Screen.Width, Height = Global.Screen.Height };
+            => new HTMLCanvasElement { Width = screenWidth, Height = screenHeight };
         public static HTMLCanvasElement CreateBottomCanvas()
-            => new HTMLCanvasElement { Width = Global.Screen.Width + 2 * xMultiplier, Height = Global.Screen.Width + 2 * yMultiplier };
+            => new HTMLCanvasElement { Width = screenWidth + 2 * xMultiplier, Height = screenWidth + 2 * yMultiplier };
 
         public static HTMLCanvasElement DOMCanvas = CreateCanvas(), BottomCanvas = CreateBottomCanvas(), TopCanvas = CreateCanvas();
         public static CanvasRenderingContext2D
@@ -52,9 +117,107 @@ namespace CustomizableGameofLife
             return (a < 0 && a != b * res) ? res - 1 : res;
         }
 
+        public const int maxAdjacentCells = 8;
+
+        static List<(HTMLSelectElement, HTMLSelectElement)> optionCells = new List<(HTMLSelectElement, HTMLSelectElement)>();
+
+        static void ApplyPreset(bool[] livingRules, bool[] deadRules)
+        {
+            for (int n = 0; n <= 8; n++)
+            {
+                optionCells[n].Item1.SetBoolValue(livingRules[n]);
+                optionCells[n].Item2.SetBoolValue(deadRules[n]);
+            }
+        }
+
         public static void Main ()
         {
+            object rulesObjectStr = Global.LocalStorage.GetItem("rules");
+            if (rulesObjectStr is string r)
+            {
+                try
+                {
+                    dynamic rulesObj = JSON.Parse(r);
+                    if (rulesObjectStr != null)
+                    {
+                        if (Script.Write("{0} instanceof Array", rulesObj.livingRules))
+                            livingRules = JsonConvert.DeserializeObject<bool[]>(JSON.Stringify(rulesObj.livingRules));
+                        if (Script.Write("{0} instanceof Array", rulesObj.deadRules))
+                            deadRules = JsonConvert.DeserializeObject<bool[]>(JSON.Stringify(rulesObj.deadRules));
+                    }
+                }
+                catch { }
+            }
+            Document.Body.Style["user-select"] = "none";
+            Document.Head.AppendChild(new HTMLLinkElement { Rel = "stylesheet", Href = "https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" });
             Document.Body.Style.Margin = "0px";
+            Document.Body.AppendChild(SettingsPopupContainer);
+            Document.Body.AppendChild(new HTMLStyleElement { InnerHTML = "td, th { border: 1px solid black; padding: 5px }" });
+
+            HTMLTableElement adjacentCellsTable = new HTMLTableElement { Style = { MarginLeft = "auto", MarginRight = "auto" } }.Add(
+                new HTMLTableRowElement().Add(
+                    new HTMLTableHeaderCellElement().Add("#"),
+                    new HTMLTableHeaderCellElement().Add("L"),
+                    new HTMLTableHeaderCellElement().Add("D")
+                )
+            );
+
+            HTMLSelectElement Create01Selector() => new HTMLSelectElement()
+                .Add<HTMLSelectElement>(new HTMLOptionElement { Value = "false" }.Add("0"), new HTMLOptionElement { Value = "true" }.Add("1"));
+
+            for (int n = 0; n <= maxAdjacentCells; n++)
+            {
+                HTMLTableRowElement row = new HTMLTableRowElement().AddTo(adjacentCellsTable);
+                row.Add(new HTMLTableDataCellElement().Add(n.ToString()));
+                optionCells.Add((
+                    Create01Selector().AddTo(new HTMLTableDataCellElement().AddTo(row)).SetBoolValue(livingRules[n]),
+                    Create01Selector().AddTo(new HTMLTableDataCellElement().AddTo(row)).SetBoolValue(deadRules[n])
+                ));
+            }
+
+            HTMLDivElement presets = new HTMLDivElement { Style = { TextAlign = TextAlign.Center } }
+            .Add(
+                new HTMLAnchorElement
+                {
+                    Href = "javascript:void(0)",
+                    Style = { FontSize = "1rem" },
+                    OnClick = e =>
+                    {
+                        ApplyPreset(
+                        livingRules: new bool[9] { false, false, true, true, false, false, false, false, false },
+                        deadRules: new bool[9] { false, false, false, true, false, false, false, false, false }
+                    );
+                    }
+                }
+                .Add("Conway's Game of Life Preset")
+            );
+
+            SettingsButton.OnClick = e => SettingsPopupContainer.Style.Display = "";
+
+            SettingsPopup.Add(adjacentCellsTable);
+            SettingsPopup.Add(new HTMLBRElement(), presets, new HTMLBRElement());
+            SettingsPopup.Add(new HTMLButtonElement
+            {
+                ClassName = "btn btn-primary",
+                OnClick = e =>
+                {
+                    for (int n = 0; n <= maxAdjacentCells; n++)
+                    {
+                        livingRules[n] = optionCells[n].Item1.BoolValue();
+                        deadRules[n] = optionCells[n].Item2.BoolValue();
+                    }
+                    Global.LocalStorage.SetItem("rules", JsonConvert.SerializeObject(new
+                    {
+                        livingRules = livingRules,
+                        deadRules = deadRules
+                    }));
+                    SettingsPopupContainer.Style.Display = Display.None;
+                }
+            }.Add("Save Changes"));
+
+
+            Hotbar.AppendChild(PlayButton);
+            Hotbar.AppendChild(SettingsButton);
 
             HTMLDivElement backgroundDiv = new HTMLDivElement { Style = { Position = Position.Relative, MinWidth = "0", MinHeight = "0" }};
             DOMCanvas.Style.Overflow = Overflow.Hidden;
@@ -64,7 +227,7 @@ namespace CustomizableGameofLife
             DOMCanvas.Style.Top = "0px";
             backgroundDiv.AppendChild(DOMCanvas);
             //backgroundDiv.AppendChild(new HTMLBRElement());
-            backgroundDiv.AppendChild(PlayButton);
+            backgroundDiv.AppendChild(Hotbar);
             Document.Body.AppendChild(backgroundDiv);
 
             BottomCanvasContext.StrokeStyle = "black";
@@ -84,6 +247,8 @@ namespace CustomizableGameofLife
                 BottomCanvasContext.Stroke();
 
             (int x, int y) draggingPos = (0, 0);
+            (int x, int y) originalPos = (0, 0);
+            bool changingIntent = false;
             void ProcessMouseEvent (MouseEvent<HTMLCanvasElement> e)
             {
                 //if ((@event.Buttons & 1) == 0) return;
@@ -95,19 +260,36 @@ namespace CustomizableGameofLife
             }
 
             DOMCanvas.OnMouseDown = e => {
+                changingIntent = true;
                 (int x, int y) = e.MousePos();
                 draggingPos = (x - offsetPos.x, y - offsetPos.y);
+                originalPos = offsetPos;
             };
-            DOMCanvas.OnMouseUp = e => draggingPos = offsetPos;
+            DOMCanvas.OnMouseUp = e =>
+            {
+                if (Math.Abs(offsetPos.x - originalPos.x) > xMultiplier || Math.Abs(offsetPos.y - originalPos.y) > yMultiplier)
+                    changingIntent = false;
+                draggingPos = offsetPos;
+                originalPos = (0, 0);
+            };
             DOMCanvas.OnMouseMove = e =>
             {
                 if ((e.Buttons & 1) == 0) return;
                 if (draggingPos == (0, 0)) draggingPos = e.MousePos();
                 var mousePos = e.MousePos();
+                if (Math.Abs(offsetPos.x - originalPos.x) > xMultiplier || Math.Abs(offsetPos.x - originalPos.x) > yMultiplier)
+                    changingIntent = false;
                 offsetPos = (mousePos.x - draggingPos.x, mousePos.y - draggingPos.y);
                 Draw();
             };
-            DOMCanvas.OnClick = ProcessMouseEvent;
+            DOMCanvas.OnClick = e =>
+            {
+                if (changingIntent)
+                {
+                    ProcessMouseEvent(e);
+                    changingIntent = false;
+                }
+            };
 
             Global.SetInterval(NextFrame, 100);
         }
@@ -117,7 +299,7 @@ namespace CustomizableGameofLife
         public static int NumberOfAdjacentCells (int x, int y)
         {
             int adjacentCells = 0;
-            for (int L = 0; L < 9; L++)
+            for (int L = 0; L <= 8; L++)
             {
                 if (L == 4) continue;
 
@@ -136,50 +318,46 @@ namespace CustomizableGameofLife
         {
             //updating = true;
 
-            HashSet<(int, int)> changing = new HashSet<(int, int)>();
+            List<(int, int)> removing = new List<(int, int)>();
+            List<(int, int)> adding = new List<(int, int)>();
 
             foreach ((int x, int y) in Squares)
             {
                 int adjacentCells = 0;
-                for (int L = 0; L < 9; L++)
+                for (int L = 0; L <= 8; L++)
                 {
                     if (L == 4) continue;
 
                     int x_ = x - 1 + (L % 3),
                         y_ = y - 1 + L / 3;
 
-                    //if (x_ < 0 || x_ >= width || y_ < 0 || y_ >= height) continue;
-
                     if (Squares.Contains((x_, y_)))
                         adjacentCells++;
-                    else if (L != 7 && L != 8)
+                    else
                     {
-                        // Exactly 3 adjacent cells needed.
-                        if (NumberOfAdjacentCells(x_, y_) == 3 && !Squares.Contains((x_, y_)))
-                            changing.Add((x_, y_));
+                        // Create new cells.
+
+                        // Optimization for rule of 3 adjacent cells
+                        //if (L != 7 && L != 8)
+                        //{
+                        //}
+
+                        if (deadRules[NumberOfAdjacentCells(x_, y_)])
+                            adding.Add((x_, y_));
                     }
                 }
 
-                    switch (adjacentCells)
-                    {
-                        case 0:
-                        case 1:
-                            changing.Add((x, y));
-                            break;
-                        case 4:
-                        case 5:
-                        case 6:
-                        case 7:
-                        case 8:
-                            changing.Add((x, y));
-                            break;
-                    }
+                if (!livingRules[adjacentCells])
+                    removing.Add((x, y));
+            }
+            foreach ((int x, int y) in removing)
+            {
+                if (!Squares.Remove((x, y))) throw new Exception("Square tried to be removed but didn't exist");
             }
 
-            foreach ((int x, int y) in changing)
+            foreach ((int x, int y) in adding)
             {
-                if (!Squares.Remove((x, y)))
-                    Squares.Add((x, y));
+                Squares.Add((x, y));
             }
         }
 
