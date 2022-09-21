@@ -14,7 +14,7 @@ namespace CustomizableGameofLife
     public static class App
     {
         public const int xMultiplier = 20, yMultiplier = 20;
-        public static int screenWidth = Global.Screen.Width, screenHeight = Global.Screen.Height;
+        public static int screenWidth = Window.InnerWidth, screenHeight = Window.InnerHeight;
         public static int width = screenWidth / xMultiplier, height = screenHeight / yMultiplier;
 
         public static HTMLDivElement Hotbar = new HTMLDivElement
@@ -22,7 +22,7 @@ namespace CustomizableGameofLife
             Style = {
                 Position = Position.Absolute,
                 Left = "100px",
-                Top = $"{height * yMultiplier - 30}px"
+                Top = $"{Window.InnerHeight - 30}px"
             }
         }.Add(ResetButton = new HTMLButtonElement
         {
