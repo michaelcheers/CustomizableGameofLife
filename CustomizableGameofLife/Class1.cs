@@ -94,7 +94,7 @@ namespace CustomizableGameofLife
         public static HTMLCanvasElement CreateCanvas ()
             => new HTMLCanvasElement { Width = screenWidth, Height = screenHeight };
         public static HTMLCanvasElement CreateBottomCanvas()
-            => new HTMLCanvasElement { Width = screenWidth + 2 * xMultiplier, Height = screenWidth + 2 * yMultiplier };
+            => new HTMLCanvasElement { Width = screenWidth + 2 * xMultiplier, Height = screenHeight + 2 * yMultiplier };
 
         public static HTMLCanvasElement DOMCanvas = CreateCanvas(), BottomCanvas = CreateBottomCanvas(), TopCanvas = CreateCanvas();
         public static CanvasRenderingContext2D
