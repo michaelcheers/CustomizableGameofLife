@@ -93,10 +93,12 @@ namespace CustomizableGameofLife
 
         public static HTMLCanvasElement CreateCanvas ()
             => new HTMLCanvasElement { Width = screenWidth, Height = screenHeight };
+        public static HTMLCanvasElement CreateTopCanvas()
+            => new HTMLCanvasElement { Width = width + 2, Height = height + 2 };
         public static HTMLCanvasElement CreateBottomCanvas()
             => new HTMLCanvasElement { Width = screenWidth + 2 * xMultiplier, Height = screenHeight + 2 * yMultiplier };
 
-        public static HTMLCanvasElement DOMCanvas = CreateCanvas(), BottomCanvas = CreateBottomCanvas(), TopCanvas = CreateCanvas();
+        public static HTMLCanvasElement DOMCanvas = CreateCanvas(), BottomCanvas = CreateBottomCanvas(), TopCanvas = CreateTopCanvas();
         public static CanvasRenderingContext2D
             TopCanvasContext = TopCanvas.GetContext(CanvasTypes.CanvasContext2DType.CanvasRenderingContext2D),
             BottomCanvasContext = BottomCanvas.GetContext(CanvasTypes.CanvasContext2DType.CanvasRenderingContext2D),
@@ -368,18 +370,36 @@ namespace CustomizableGameofLife
             DOMCanvasContext.ClearRect(0, 0, DOMCanvas.Width, DOMCanvas.Height);
             TopCanvasContext.ClearRect(0, 0, DOMCanvas.Width, DOMCanvas.Height);
             (int offsetX, int offsetY) = offsetPos;
+            int l = (width + 2) * (height + 2);
+            Uint8ClampedArray imageDataArray = new Uint8ClampedArray(l * 4);
             foreach ((int x, int y) in Squares)
             {
-                TopCanvasContext.FillRect(x * xMultiplier + offsetX, y * yMultiplier + offsetY, xMultiplier, yMultiplier);
+                int drawX = x + (offsetX / xMultiplier) + 1, drawY = y + (offsetY / yMultiplier) + 1;
+                if (drawX < 0 || drawX >= width + 2 || drawY < 0 || drawY >= height + 2) continue;
+                int idx = drawX + drawY * (width + 2);
+                imageDataArray[idx * 4 + 3] = 255;
             }
+            ImageData imageData = new ImageData(imageDataArray, (uint)(width + 2), (uint)(height + 2));
+            TopCanvasContext.ImageSmoothingEnabled = false;
+            TopCanvasContext.PutImageData(imageData, 0, 0);
             DOMCanvasContext.DrawImage(BottomCanvas, offsetX % xMultiplier - xMultiplier, offsetY % yMultiplier - yMultiplier);
-            DOMCanvasContext.DrawImage(TopCanvas, 0, 0);
+            DOMCanvasContext.ImageSmoothingEnabled = false;
+            DOMCanvasContext.DrawImage(TopCanvas, (offsetX % xMultiplier) - xMultiplier, (offsetY % yMultiplier) - yMultiplier, (width + 2) * xMultiplier, (height + 2) * yMultiplier);
         }
+
+        public static int frameNum = 0;
 
         public static void NextFrame ()
         {
             if (!playing) return;
-            Update();
+
+            bool skipFrames = Squares.Count >= 250;
+            int updatesPerDraw = 1;// skipFrames ? 2 : 1;
+            frameNum++;
+            if (skipFrames && (frameNum % updatesPerDraw) != 0) return;
+
+            for (int n = 0; n < updatesPerDraw; n++)
+                Update();
             Draw();
         }
     }
