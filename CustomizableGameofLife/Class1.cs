@@ -22,18 +22,53 @@ namespace CustomizableGameofLife
             Style = {
                 Position = Position.Absolute,
                 Left = "100px",
-                Top = $"{Window.InnerHeight - 30}px"
+                Top = $"{Window.InnerHeight - 40}px"
             }
-        }.Add(ResetButton = new HTMLButtonElement
-        {
-            OnClick = e =>
+        }
+
+            .Add(new HTMLButtonElement
             {
-                Squares.Clear();
-                if (playing)
-                    InvertIsPlaying();
-                Draw();
+                ClassName = "btn btn-primary", OnClick = e => Reset(makeBlank: true)
+            }.Add("Blank"))
+
+            .Add(new HTMLButtonElement
+            {
+                ClassName = "btn btn-primary", OnClick = e => Reset()
+            }.Add("Reset"))
+            
+            .Add(new HTMLButtonElement
+            {
+                ClassName = "btn btn-primary", OnClick = e => SaveAsStarter()
+            }.Add("Save as Starter"));
+
+        public static void Reset (bool makeBlank = false)
+        {
+            if (!Global.Confirm("Any unsaved changes will be lost. Continue?")) return;
+            Squares.Clear();
+            if (!makeBlank)
+            {
+                offsetPos = (0, 0);
+                object starterPositions = Global.LocalStorage.GetItem("starterPositions");
+                if (starterPositions != null)
+                {
+                    string s = (string)starterPositions;
+                    if (!string.IsNullOrEmpty(s))
+                        foreach (var pos in (JsonConvert.DeserializeObject<(int x, int y)[]>(s)))
+                            Squares.Add(pos);
+                }
             }
-        }.Add("Reset"));
+            if (playing)
+                InvertIsPlaying();
+            Draw();
+        }
+
+        public static void SaveAsStarter ()
+        {
+            (int x, int y) offsetCoords = (NegDiv(offsetPos.x, xMultiplier), NegDiv(offsetPos.y, yMultiplier));
+            Global.LocalStorage.SetItem(
+                "starterPositions", JsonConvert.SerializeObject(Squares.ToList().ConvertAll(s => (x: s.x + offsetCoords.x, s.y + offsetCoords.y)))
+            );
+        }
 
         public static HTMLDivElement SettingsPopupContainer = new HTMLDivElement
         {
@@ -68,7 +103,7 @@ namespace CustomizableGameofLife
         public static HTMLButtonElement SettingsButton = new HTMLButtonElement
         {
             InnerHTML = "⚙",
-            OnClick = e =>
+            ClassName = "btn btn-primary", OnClick = e =>
             {
 
             }
@@ -78,9 +113,8 @@ namespace CustomizableGameofLife
         {
             InnerHTML = "▶",
             Style = { Color = "green" },
-            OnClick = e => InvertIsPlaying()
+            ClassName = "btn btn-primary", OnClick = e => InvertIsPlaying()
         };
-        public static HTMLButtonElement ResetButton;
 
         public static void InvertIsPlaying ()
         {
@@ -158,7 +192,7 @@ namespace CustomizableGameofLife
             Document.Head.AppendChild(new HTMLLinkElement { Rel = "stylesheet", Href = "https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" });
             Document.Body.Style.Margin = "0px";
             Document.Body.AppendChild(SettingsPopupContainer);
-            Document.Body.AppendChild(new HTMLStyleElement { InnerHTML = "td, th { border: 1px solid black; padding: 5px }" });
+            Document.Body.AppendChild(new HTMLStyleElement { InnerHTML = "td, th { border: 1px solid black; padding: 5px } button { margin-right: 5px }" });
 
             HTMLTableElement adjacentCellsTable = new HTMLTableElement { Style = { MarginLeft = "auto", MarginRight = "auto" } }.Add(
                 new HTMLTableRowElement().Add(
