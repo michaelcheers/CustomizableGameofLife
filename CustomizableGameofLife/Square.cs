@@ -6,7 +6,14 @@ using System.Threading.Tasks;
 
 namespace CustomizableGameofLife
 {
-    internal class Square   
+    /// <summary>
+    /// Options:
+    /// - Cell (IsCell: true, IsWall: false)  | Black
+    /// - Wall (IsCell: true, IsWall: true)   | Grey
+    /// - Brick (IsCell: false, IsWall: true) | Grey
+    /// </summary>
+
+    internal class Square
     {
         // Brick is full cell. Wall does not count a cell.
         public bool IsCell;

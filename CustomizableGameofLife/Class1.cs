@@ -215,27 +215,39 @@ namespace CustomizableGameofLife
                 ));
             }
 
-            HTMLDivElement presets = new HTMLDivElement { Style = { TextAlign = TextAlign.Center } }
-            .Add(
-                new HTMLAnchorElement
-                {
-                    Href = "javascript:void(0)",
-                    Style = { FontSize = "1rem" },
-                    OnClick = e =>
+            List<(string name, bool[] livingRules, bool[] deadRules)> presetsList = new List<(string name, bool[] livingRules, bool[] deadRules)>()
+            {
+                (
+                    "Conway's Game of Life Preset",
+                    new bool[9] { false, false, true, true, false, false, false, false, false },
+                    new bool[9] { false, false, false, true, false, false, false, false, false }
+                ),
+                (
+                    "Immortal Cells Preset",
+                    new bool[9] { true, true, true, true, true, true, true, true, true },
+                    new bool[9] { false, false, false, true, false, false, false, false, false }
+                )
+            };
+
+            HTMLDivElement presetsDiv = new HTMLDivElement { Style = { TextAlign = TextAlign.Center } };
+
+            foreach ((string name, bool[] livingRules, bool[] deadRules) in presetsList)
+            {
+                presetsDiv.Add(new HTMLDivElement().Add(
+                    new HTMLAnchorElement
                     {
-                        ApplyPreset(
-                        livingRules: new bool[9] { false, false, true, true, false, false, false, false, false },
-                        deadRules: new bool[9] { false, false, false, true, false, false, false, false, false }
-                    );
+                        Href = "javascript:void(0)",
+                        Style = { FontSize = "1rem" },
+                        OnClick = e => ApplyPreset(livingRules: livingRules, deadRules: deadRules )
                     }
-                }
-                .Add("Conway's Game of Life Preset")
-            );
+                    .Add(name)
+                ));
+            }
 
             SettingsButton.OnClick = e => SettingsPopupContainer.Style.Display = "";
 
             SettingsPopup.Add(adjacentCellsTable);
-            SettingsPopup.Add(new HTMLBRElement(), presets, new HTMLBRElement());
+            SettingsPopup.Add(new HTMLBRElement(), presetsDiv, new HTMLBRElement());
             SettingsPopup.Add(new HTMLButtonElement
             {
                 ClassName = "btn btn-primary",
