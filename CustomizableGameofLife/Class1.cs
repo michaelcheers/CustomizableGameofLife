@@ -226,6 +226,11 @@ namespace CustomizableGameofLife
                     "Immortal Cells Preset",
                     new bool[9] { true, true, true, true, true, true, true, true, true },
                     new bool[9] { false, false, false, true, false, false, false, false, false }
+                ),
+                (
+                    "Almost Immortal Cells Preset",
+                    new bool[9] { true, true, true, true, true, true, true, true, false },
+                    new bool[9] { false, false, false, true, false, false, false, false, false }
                 )
             };
 
