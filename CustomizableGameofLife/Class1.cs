@@ -29,6 +29,8 @@ namespace CustomizableGameofLife
             OnClick = e =>
             {
                 Squares.Clear();
+                if (playing)
+                    InvertIsPlaying();
                 Draw();
             }
         }.Add("Reset"));
@@ -76,14 +78,16 @@ namespace CustomizableGameofLife
         {
             InnerHTML = "▶",
             Style = { Color = "green" },
-            OnClick = e =>
-            {
-                playing = !playing;
-                PlayButton.Style.Color = playing ? "red" : "green";
-                PlayButton.InnerHTML = playing ? "⏸" : "▶";
-            }
+            OnClick = e => InvertIsPlaying()
         };
         public static HTMLButtonElement ResetButton;
+
+        public static void InvertIsPlaying ()
+        {
+            playing = !playing;
+            PlayButton.Style.Color = playing ? "red" : "green";
+            PlayButton.InnerHTML = playing ? "⏸" : "▶";
+        }
 
 
         public static bool playing = false;
