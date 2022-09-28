@@ -231,7 +231,12 @@ namespace CustomizableGameofLife
                     "Almost Immortal Cells Preset",
                     new bool[9] { true, true, true, true, true, true, true, true, false },
                     new bool[9] { false, false, false, true, false, false, false, false, false }
-                )
+                ),
+                (
+                    "Alternate Conway's Game of Life Preset",
+                    new bool[9] { false, false, true, false, true, false, false, false, false },
+                    new bool[9] { false, false, false, true, false, true, false, false, false }
+                ),
             };
 
             HTMLDivElement presetsDiv = new HTMLDivElement { Style = { TextAlign = TextAlign.Center } };
