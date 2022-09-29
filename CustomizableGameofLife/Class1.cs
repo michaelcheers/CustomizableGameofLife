@@ -40,6 +40,11 @@ namespace CustomizableGameofLife
             {
                 ClassName = "btn btn-primary", OnClick = e => SaveAsStarter()
             }.Add("Save as Starter"))
+
+            .Add(PlayButton = new HTMLButtonElement
+            {
+                ClassName = "btn btn-primary", OnClick = e => InvertIsPlaying()
+            }.Add("▶"))
             
             .Add(new HTMLButtonElement
             {
@@ -126,17 +131,11 @@ namespace CustomizableGameofLife
 
         public static HTMLButtonElement SettingsButton;
 
-        public static HTMLButtonElement PlayButton = new HTMLButtonElement
-        {
-            InnerHTML = "▶",
-            Style = { Color = "green" },
-            ClassName = "btn btn-primary", OnClick = e => InvertIsPlaying()
-        };
+        public static HTMLButtonElement PlayButton;
 
         public static void InvertIsPlaying ()
         {
             playing = !playing;
-            PlayButton.Style.Color = playing ? "red" : "green";
             PlayButton.InnerHTML = playing ? "⏸" : "▶";
         }
 
@@ -404,9 +403,6 @@ namespace CustomizableGameofLife
                 objectInfo.Add(new HTMLBRElement());
                 objectInfo.Add(new HTMLBRElement());
             }
-
-
-            Hotbar.AppendChild(PlayButton);
 
             HTMLDivElement backgroundDiv = new HTMLDivElement { Style = { Position = Position.Relative, MinWidth = "0", MinHeight = "0" }};
             DOMCanvas.Style.Overflow = Overflow.Hidden;
