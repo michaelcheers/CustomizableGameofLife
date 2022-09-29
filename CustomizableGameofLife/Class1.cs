@@ -39,7 +39,26 @@ namespace CustomizableGameofLife
             .Add(new HTMLButtonElement
             {
                 ClassName = "btn btn-primary", OnClick = e => SaveAsStarter()
-            }.Add("Save as Starter"));
+            }.Add("Save as Starter"))
+            
+            .Add(new HTMLButtonElement
+            {
+                ClassName = "btn btn-primary", OnClick = e => ShowModal(ModalType.Settings)
+            }.Add("⚙"));
+
+        public static HTMLDivElement RightHotbar = new HTMLDivElement
+        {
+            Style = {
+                Position = Position.Absolute,
+                Right = "100px",
+                Top = $"{Window.InnerHeight - 40}px"
+            }
+        }
+            .Add(new HTMLButtonElement
+            {
+                ClassName = "btn btn-info",
+                OnClick = e => ShowModal(ModalType.NotableObjects)
+            }.Add("Notable Objects"));
 
         public static void Reset (bool makeBlank = false)
         {
@@ -70,7 +89,25 @@ namespace CustomizableGameofLife
             );
         }
 
-        public static HTMLDivElement SettingsPopupContainer = new HTMLDivElement
+        public static HTMLDivElement SettingsPopup, NotableObjectsPopup;
+
+        public static HTMLDivElement CreatePopup()
+            => new HTMLDivElement
+            {
+                Style =
+                {
+                    FontSize = "1.5rem",
+                    BackgroundColor = "white",
+                    Position = Position.Fixed,
+                    Top = "0px",
+                    Left = "25%",
+                    Width = "50%",
+                    Height = "100%",
+                    Display = Display.None
+                }
+            };
+
+        public static HTMLDivElement PopupContainer = new HTMLDivElement
         {
             Style =
             {
@@ -84,30 +121,10 @@ namespace CustomizableGameofLife
                 Display = Display.None
             }
         }
-            .Add(SettingsPopup = new HTMLDivElement
-            {
-                Style =
-                {
-                    FontSize = "1.5rem",
-                    BackgroundColor = "white",
-                    Position = Position.Fixed,
-                    Top = "0px",
-                    Left = "25%",
-                    Width = "50%",
-                    Height = "100%"
-                }
-            });
+            .Add(SettingsPopup = CreatePopup())
+            .Add(NotableObjectsPopup = CreatePopup());
 
-        public static HTMLDivElement SettingsPopup;
-
-        public static HTMLButtonElement SettingsButton = new HTMLButtonElement
-        {
-            InnerHTML = "⚙",
-            ClassName = "btn btn-primary", OnClick = e =>
-            {
-
-            }
-        };
+        public static HTMLButtonElement SettingsButton;
 
         public static HTMLButtonElement PlayButton = new HTMLButtonElement
         {
@@ -170,6 +187,78 @@ namespace CustomizableGameofLife
             }
         }
 
+        public enum ModalType
+        {
+            Settings,
+            NotableObjects
+        }
+
+        public static void ShowModal (ModalType modalType)
+        {
+            PopupContainer.Style.Display = "";
+            HTMLDivElement toShow;
+            switch (modalType)
+            {
+                case ModalType.Settings:
+                    toShow = SettingsPopup;
+                    break;
+                case ModalType.NotableObjects:
+                    toShow = NotableObjectsPopup;
+                    break;
+                default:
+                    throw new ArgumentException(((int)modalType).ToString(), nameof(modalType));
+            }
+            foreach (HTMLDivElement div in new[] { SettingsPopup, NotableObjectsPopup })
+            {
+                div.Style.Display = div == toShow ? "" : "none";
+            }
+        }
+
+        public static void HideModal ()
+        {
+            PopupContainer.Style.Display = Display.None;
+            SettingsPopup.Style.Display = Display.None;
+            NotableObjectsPopup.Style.Display = Display.None;
+        }
+
+        public static HTMLCanvasElement DrawShape (HashSet<(int x, int y)> Squares)
+        {
+            const int xMultiplier = App.xMultiplier * 2;
+            const int yMultiplier = App.yMultiplier * 2;
+
+            // Getting width and height of shape
+            int width = Squares.Max(s => s.x) + 1;
+            int height = Squares.Max(s => s.y) + 1;
+            // Drawing on inner canvas
+            HTMLCanvasElement innerCanvas = new HTMLCanvasElement
+            {
+                Width = width,
+                Height = height
+            };
+            CanvasRenderingContext2D context = innerCanvas.GetContext(CanvasTypes.CanvasContext2DType.CanvasRenderingContext2D);
+            Uint8ClampedArray imageDataArray = CreateImageDataArray(width, height);
+            foreach ((int x, int y) in Squares)
+            {
+                imageDataArray[(x + y * width) * 4 + 3] = 255;
+            }
+            ImageData imageData = new ImageData(imageDataArray, (uint)width, (uint)height);
+            context.PutImageData(imageData, 0, 0);
+            // Resizing to upper canvas
+            HTMLCanvasElement outerCanvas = new HTMLCanvasElement
+            {
+                Width = width * xMultiplier,
+                Height = height * yMultiplier
+            };
+            CanvasRenderingContext2D outerContext = outerCanvas.GetContext(CanvasTypes.CanvasContext2DType.CanvasRenderingContext2D);
+            outerContext.ImageSmoothingEnabled = false;
+            outerContext.DrawImage(innerCanvas, 0, 0, outerCanvas.Width, outerCanvas.Height);
+
+            return outerCanvas;
+        }
+
+        public static Uint8ClampedArray CreateImageDataArray (int width, int height)
+            => new Uint8ClampedArray(width * height * 4);
+
         public static void Main ()
         {
             object rulesObjectStr = Global.LocalStorage.GetItem("rules");
@@ -191,7 +280,7 @@ namespace CustomizableGameofLife
             Document.Body.Style["user-select"] = "none";
             Document.Head.AppendChild(new HTMLLinkElement { Rel = "stylesheet", Href = "https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" });
             Document.Body.Style.Margin = "0px";
-            Document.Body.AppendChild(SettingsPopupContainer);
+            Document.Body.AppendChild(PopupContainer);
             Document.Body.AppendChild(new HTMLStyleElement { InnerHTML = "td, th { border: 1px solid black; padding: 5px } button { margin-right: 5px }" });
 
             HTMLTableElement adjacentCellsTable = new HTMLTableElement { Style = { MarginLeft = "auto", MarginRight = "auto" } }.Add(
@@ -254,8 +343,6 @@ namespace CustomizableGameofLife
                 ));
             }
 
-            SettingsButton.OnClick = e => SettingsPopupContainer.Style.Display = "";
-
             SettingsPopup.Add(adjacentCellsTable);
             SettingsPopup.Add(new HTMLBRElement(), presetsDiv, new HTMLBRElement());
             SettingsPopup.Add(new HTMLButtonElement
@@ -273,13 +360,51 @@ namespace CustomizableGameofLife
                         livingRules = livingRules,
                         deadRules = deadRules
                     }));
-                    SettingsPopupContainer.Style.Display = Display.None;
+                    HideModal();
                 }
             }.Add("Save Changes"));
 
+            NotableObjectsPopup.Add(new HTMLButtonElement
+            {
+                Style = { CssFloat = Float.Right }
+            }.Add("❌"));
+            NotableObjectsPopup.Add(new HTMLDivElement
+            {
+                Style = { Clear = Clear.Both }
+            });
+            foreach ((HashSet<(int x, int y)> objectDetails, string description, string rules) in NotableObjectsList.NotableObjects)
+            {
+                HTMLDivElement objectInfo = new HTMLDivElement
+                {
+                    Style = { Width = "30rem" }
+                }
+
+                    .AddTo(new HTMLDivElement
+                    {
+                        Style =
+                        {
+                            Display = Display.Flex,
+                            AlignItems = AlignItems.Center,
+                            FlexDirection = FlexDirection.Column
+                        }
+                    }.AddTo(NotableObjectsPopup));
+                objectInfo.Add(new HTMLDivElement
+                {
+                    Style =
+                    {
+                        Display = Display.Flex,
+                        AlignItems = AlignItems.Center,
+                        FlexDirection = FlexDirection.Column
+                    }
+                }.Add(DrawShape(objectDetails)));
+                objectInfo.Add(new HTMLDivElement().Add(description));
+                objectInfo.Add(rules);
+                objectInfo.Add(new HTMLBRElement());
+                objectInfo.Add(new HTMLBRElement());
+            }
+
 
             Hotbar.AppendChild(PlayButton);
-            Hotbar.AppendChild(SettingsButton);
 
             HTMLDivElement backgroundDiv = new HTMLDivElement { Style = { Position = Position.Relative, MinWidth = "0", MinHeight = "0" }};
             DOMCanvas.Style.Overflow = Overflow.Hidden;
@@ -287,9 +412,9 @@ namespace CustomizableGameofLife
             DOMCanvas.Style.Position = "absolute";
             DOMCanvas.Style.Left = "0px";
             DOMCanvas.Style.Top = "0px";
-            backgroundDiv.AppendChild(DOMCanvas);
-            //backgroundDiv.AppendChild(new HTMLBRElement());
-            backgroundDiv.AppendChild(Hotbar);
+            backgroundDiv.Add(DOMCanvas);
+            backgroundDiv.Add(Hotbar);
+            backgroundDiv.Add(RightHotbar);
             Document.Body.AppendChild(backgroundDiv);
 
             BottomCanvasContext.StrokeStyle = "black";
@@ -430,8 +555,7 @@ namespace CustomizableGameofLife
             DOMCanvasContext.ClearRect(0, 0, DOMCanvas.Width, DOMCanvas.Height);
             TopCanvasContext.ClearRect(0, 0, DOMCanvas.Width, DOMCanvas.Height);
             (int offsetX, int offsetY) = offsetPos;
-            int l = (width + 2) * (height + 2);
-            Uint8ClampedArray imageDataArray = new Uint8ClampedArray(l * 4);
+            Uint8ClampedArray imageDataArray = CreateImageDataArray(width + 2, height + 2);
             foreach ((int x, int y) in Squares)
             {
                 int drawX = x + (offsetX / xMultiplier) + 1, drawY = y + (offsetY / yMultiplier) + 1;
@@ -440,7 +564,6 @@ namespace CustomizableGameofLife
                 imageDataArray[idx * 4 + 3] = 255;
             }
             ImageData imageData = new ImageData(imageDataArray, (uint)(width + 2), (uint)(height + 2));
-            TopCanvasContext.ImageSmoothingEnabled = false;
             TopCanvasContext.PutImageData(imageData, 0, 0);
             DOMCanvasContext.DrawImage(BottomCanvas, offsetX % xMultiplier - xMultiplier, offsetY % yMultiplier - yMultiplier);
             DOMCanvasContext.ImageSmoothingEnabled = false;
