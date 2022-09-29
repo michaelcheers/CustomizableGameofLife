@@ -366,7 +366,9 @@ namespace CustomizableGameofLife
 
             NotableObjectsPopup.Add(new HTMLButtonElement
             {
-                Style = { CssFloat = Float.Right }
+                ClassName = "btn btn-light",
+                Style = { CssFloat = Float.Right },
+                OnClick = e => HideModal()
             }.Add("❌"));
             NotableObjectsPopup.Add(new HTMLDivElement
             {
