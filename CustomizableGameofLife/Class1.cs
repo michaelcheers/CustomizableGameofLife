@@ -6,6 +6,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -35,6 +36,11 @@ namespace CustomizableGameofLife
             {
                 ClassName = "btn btn-primary", OnClick = e => Reset()
             }.Add("Reset"))
+
+            .Add(new HTMLButtonElement
+            {
+                ClassName = "btn btn-primary", OnClick = e => GetCoordinates()
+            }.Add("Get Coordinates"))
             
             .Add(new HTMLButtonElement
             {
@@ -86,11 +92,70 @@ namespace CustomizableGameofLife
             Draw();
         }
 
-        public static void SaveAsStarter ()
+        public static List<(int x, int y)> GetCoordinatesInteral()
         {
             (int x, int y) offsetCoords = (NegDiv(offsetPos.x, xMultiplier), NegDiv(offsetPos.y, yMultiplier));
+            return Squares.ToList().ConvertAll(s => (x: s.x + offsetCoords.x, y: s.y + offsetCoords.y));
+        }
+
+        public static List<(int x, int y)> GetNormalizedCoordinates ()
+        {
+            List<(int x, int y)> coords = GetCoordinatesInteral();
+            coords = coords.Where(c => c.x >= 0 && c.y >= 0 && c.x < width && c.y < height).ToList();
+            int minX = coords.Min(c => c.x), minY = coords.Min(c => c.y);
+            coords = coords.Select(c => (c.x - minX, c.y - minY)).ToList();
+            return coords;
+        }
+
+        public static void GetCoordinates ()
+        {
+            string codeGenerated = $@"(new HashSet<(int x, int y)>
+{{
+    {string.Join(",\n    ", GetNormalizedCoordinates().Select(t => $"({t.x}, {t.y})"))}
+}}, ""Untitled Object"", {JSON.Stringify($"{string.Concat(deadRules.Select(k => k ? 1 : 0))} / {string.Concat(livingRules.Select(k => k ? 1 : 0))}")})";
+            HTMLDivElement modal, modalContent = 
+                new HTMLDivElement { ClassName = "modal-content" }
+                    .AddTo(new HTMLDivElement { ClassName = "modal-dialog" }
+                        .AddTo(modal = new HTMLDivElement { ClassName = "modal", Style = { Display = "inherit" } }
+                            .AddTo(Document.Body)
+                        )
+                    );
+            modalContent.Add(
+
+                new HTMLDivElement
+                {
+                    ClassName = "modal-header"
+                }
+
+                    .Add(new HTMLButtonElement
+                    {
+                        ClassName = "btn-close",
+                        OnClick = e => modal.Remove()
+                    }
+                        .Add(new HTMLSpanElement
+                        {
+                            InnerHTML = "&times;"
+                        })
+
+
+                ),
+
+
+                new HTMLPreElement
+                {
+                    ClassName = "modal-body",
+                    Style =
+                    {
+                        ["user-select"] = "text"
+                    }
+                }.Add(codeGenerated)
+            );
+        }
+
+        public static void SaveAsStarter ()
+        {
             Global.LocalStorage.SetItem(
-                "starterPositions", JsonConvert.SerializeObject(Squares.ToList().ConvertAll(s => (x: s.x + offsetCoords.x, s.y + offsetCoords.y)))
+                "starterPositions", JsonConvert.SerializeObject(GetCoordinatesInteral())
             );
         }
 
