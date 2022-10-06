@@ -112,7 +112,7 @@ namespace CustomizableGameofLife
             string codeGenerated = $@"(new HashSet<(int x, int y)>
 {{
     {string.Join(",\n    ", GetNormalizedCoordinates().Select(t => $"({t.x}, {t.y})"))}
-}}, ""Untitled Object"", {JSON.Stringify($"{string.Concat(deadRules.Select(k => k ? 1 : 0))} / {string.Concat(livingRules.Select(k => k ? 1 : 0))}")})";
+}}, ""Untitled Object"", {JSON.Stringify($"{(adjacencyRules.All(a => a) ? "" : (string.Concat(adjacencyRules.Select(k => k ? 1 : 0))) + " -> ")}{string.Concat(deadRules.Select(k => k ? 1 : 0))} / {string.Concat(livingRules.Select(k => k ? 1 : 0))}")})";
             HTMLDivElement modal, modalContent = 
                 new HTMLDivElement { ClassName = "modal-content" }
                     .AddTo(new HTMLDivElement { ClassName = "modal-dialog" }
@@ -207,8 +207,9 @@ namespace CustomizableGameofLife
 
         public static bool playing = false;
 
-        public static bool[] livingRules = new bool[9] { false, false, true, true, false, false, false, false, false };
-        public static bool[] deadRules   = new bool[9] { false, false, false, true, false, false, false, false, false };
+        public static bool[] livingRules   = new bool[9] { false, false, true, true, false, false, false, false, false };
+        public static bool[] deadRules     = new bool[9] { false, false, false, true, false, false, false, false, false };
+        public static bool[] adjacencyRules = new bool[maxAdjacentCells] { true, true, true, true, true, true, true, true };
 
         public static HTMLCanvasElement CreateCanvas ()
             => new HTMLCanvasElement { Width = screenWidth, Height = screenHeight };
@@ -240,7 +241,8 @@ namespace CustomizableGameofLife
 
         public const int maxAdjacentCells = 8;
 
-        static List<(HTMLSelectElement, HTMLSelectElement)> optionCells = new List<(HTMLSelectElement, HTMLSelectElement)>();
+        static List<HTMLInputElement> adjacencyRulesCells = new List<HTMLInputElement>();
+        static List<(HTMLInputElement, HTMLInputElement)> optionCells = new List<(HTMLInputElement, HTMLInputElement)>();
 
         static void ApplyPreset(bool[] livingRules, bool[] deadRules)
         {
@@ -323,6 +325,19 @@ namespace CustomizableGameofLife
         public static Uint8ClampedArray CreateImageDataArray (int width, int height)
             => new Uint8ClampedArray(width * height * 4);
 
+        public static HTMLInputElement CreateCheckbox() => new HTMLInputElement
+        {
+            Type = InputType.Checkbox,
+            Style =
+            {
+                Width = "1rem",
+                Height = "1em"
+            }
+        };
+
+        public static HTMLSelectElement Create01Selector() => new HTMLSelectElement()
+            .Add<HTMLSelectElement>(new HTMLOptionElement { Value = "false" }.Add("0"), new HTMLOptionElement { Value = "true" }.Add("1"));
+
         public static void Main ()
         {
             object rulesObjectStr = Global.LocalStorage.GetItem("rules");
@@ -337,6 +352,8 @@ namespace CustomizableGameofLife
                             livingRules = JsonConvert.DeserializeObject<bool[]>(JSON.Stringify(rulesObj.livingRules));
                         if (Script.Write("{0} instanceof Array", rulesObj.deadRules))
                             deadRules = JsonConvert.DeserializeObject<bool[]>(JSON.Stringify(rulesObj.deadRules));
+                        if (Script.Write("{0} instanceof Array", rulesObj.adjacencyRules))
+                            adjacencyRules = JsonConvert.DeserializeObject<bool[]>(JSON.Stringify(rulesObj.adjacencyRules));
                     }
                 }
                 catch { }
@@ -347,7 +364,26 @@ namespace CustomizableGameofLife
             Document.Body.AppendChild(PopupContainer);
             Document.Body.AppendChild(new HTMLStyleElement { InnerHTML = "td, th { border: 1px solid black; padding: 5px } button { margin-right: 5px }" });
 
-            HTMLTableElement adjacentCellsTable = new HTMLTableElement { Style = { MarginLeft = "auto", MarginRight = "auto" } }.Add(
+            HTMLTableElement adjacencyRulesTable = new HTMLTableElement { Style = { MarginLeft = "auto", MarginRight = "auto" } };
+            {
+                int n = 0;
+                for (int y = 0; y < 3; y++)
+                {
+                    HTMLTableRowElement row = new HTMLTableRowElement().AddTo(adjacencyRulesTable);
+                    for (int x = 0; x < 3; x++)
+                    {
+                        if (x == 1 && y == 1)
+                        {
+                            row.AppendChild(new HTMLTableDataCellElement());
+                            continue;
+                        }
+                        adjacencyRulesCells.Add(CreateCheckbox().AddTo(new HTMLTableDataCellElement().AddTo(row)).SetBoolValue(adjacencyRules[n]));
+                        n++;
+                    }
+                }
+            }
+
+            HTMLTableElement rulesTable = new HTMLTableElement { Style = { MarginLeft = "auto", MarginRight = "auto" } }.Add(
                 new HTMLTableRowElement().Add(
                     new HTMLTableHeaderCellElement().Add("#"),
                     new HTMLTableHeaderCellElement().Add("L"),
@@ -355,16 +391,13 @@ namespace CustomizableGameofLife
                 )
             );
 
-            HTMLSelectElement Create01Selector() => new HTMLSelectElement()
-                .Add<HTMLSelectElement>(new HTMLOptionElement { Value = "false" }.Add("0"), new HTMLOptionElement { Value = "true" }.Add("1"));
-
             for (int n = 0; n <= maxAdjacentCells; n++)
             {
-                HTMLTableRowElement row = new HTMLTableRowElement().AddTo(adjacentCellsTable);
+                HTMLTableRowElement row = new HTMLTableRowElement().AddTo(rulesTable);
                 row.Add(new HTMLTableDataCellElement().Add(n.ToString()));
                 optionCells.Add((
-                    Create01Selector().AddTo(new HTMLTableDataCellElement().AddTo(row)).SetBoolValue(livingRules[n]),
-                    Create01Selector().AddTo(new HTMLTableDataCellElement().AddTo(row)).SetBoolValue(deadRules[n])
+                    CreateCheckbox().AddTo(new HTMLTableDataCellElement().AddTo(row)).SetBoolValue(livingRules[n]),
+                    CreateCheckbox().AddTo(new HTMLTableDataCellElement().AddTo(row)).SetBoolValue(deadRules[n])
                 ));
             }
 
@@ -407,13 +440,26 @@ namespace CustomizableGameofLife
                 ));
             }
 
-            SettingsPopup.Add(adjacentCellsTable);
+            SettingsPopup.Add(
+                new HTMLDetailsElement { Open = true}.Add(
+                    new HTMLSummaryElement().Add("Adjacency Rules"),
+                    adjacencyRulesTable
+                ),
+                new HTMLDetailsElement { Open = true }.Add(
+                    new HTMLSummaryElement().Add("Rules"),
+                    rulesTable
+                )
+            );
             SettingsPopup.Add(new HTMLBRElement(), presetsDiv, new HTMLBRElement());
             SettingsPopup.Add(new HTMLButtonElement
             {
                 ClassName = "btn btn-primary",
                 OnClick = e =>
                 {
+                    for (int n = 0; n < maxAdjacentCells; n++)
+                    {
+                        adjacencyRules[n] = adjacencyRulesCells[n].BoolValue();
+                    }
                     for (int n = 0; n <= maxAdjacentCells; n++)
                     {
                         livingRules[n] = optionCells[n].Item1.BoolValue();
@@ -422,7 +468,8 @@ namespace CustomizableGameofLife
                     Global.LocalStorage.SetItem("rules", JsonConvert.SerializeObject(new
                     {
                         livingRules = livingRules,
-                        deadRules = deadRules
+                        deadRules = deadRules,
+                        adjacencyRules = adjacencyRules
                     }));
                     HideModal();
                 }
@@ -551,9 +598,11 @@ namespace CustomizableGameofLife
         public static int NumberOfAdjacentCells (int x, int y)
         {
             int adjacentCells = 0;
+            int n = 0;
             for (int L = 0; L <= 8; L++)
             {
-                if (L == 4) continue;
+                if (L == 4 || !adjacencyRules[n++])
+                    continue;
 
                 int x_ = x - 1 + (L % 3),
                     y_ = y - 1 + L / 3;
@@ -576,9 +625,11 @@ namespace CustomizableGameofLife
             foreach ((int x, int y) in Squares)
             {
                 int adjacentCells = 0;
+                int n = 0;
                 for (int L = 0; L <= 8; L++)
                 {
-                    if (L == 4) continue;
+                    if (L == 4 || !adjacencyRules[n++])
+                        continue;
 
                     int x_ = x - 1 + (L % 3),
                         y_ = y - 1 + L / 3;

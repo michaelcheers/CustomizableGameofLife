@@ -65,8 +65,14 @@ namespace CustomizableGameofLife
                 }.Add(value.ToCamelString()));
             return select;
         }
+        public static bool BoolValue(this HTMLInputElement checkBox) => checkBox.Checked;
         public static bool BoolValue(this HTMLSelectElement select) => select.Value == "true" ? true : false;
         public static T? Value<T>(this HTMLSelectElement select) where T : struct, System.Enum => select.Value == "" ? null : (T?)(T)(object)int.Parse(select.Value);
+        public static HTMLInputElement SetBoolValue(this HTMLInputElement checkBox, bool value)
+        {
+            checkBox.Checked = value;
+            return checkBox;
+        }
         public static HTMLSelectElement SetBoolValue(this HTMLSelectElement select, bool value)
         {
             select.Value = value.ToString().ToLower();
