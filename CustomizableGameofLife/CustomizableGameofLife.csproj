@@ -46,6 +46,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AdjacencyType.cs" />
     <Compile Include="Class1.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="ExtraElements.cs" />

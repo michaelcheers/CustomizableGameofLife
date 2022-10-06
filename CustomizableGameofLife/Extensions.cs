@@ -67,6 +67,7 @@ namespace CustomizableGameofLife
         }
         public static bool BoolValue(this HTMLInputElement checkBox) => checkBox.Checked;
         public static bool BoolValue(this HTMLSelectElement select) => select.Value == "true" ? true : false;
+        public static AdjacencyType AdjacencyValue(this HTMLSelectElement select) => (AdjacencyType)int.Parse(select.Value);
         public static T? Value<T>(this HTMLSelectElement select) where T : struct, System.Enum => select.Value == "" ? null : (T?)(T)(object)int.Parse(select.Value);
         public static HTMLInputElement SetBoolValue(this HTMLInputElement checkBox, bool value)
         {
@@ -76,6 +77,11 @@ namespace CustomizableGameofLife
         public static HTMLSelectElement SetBoolValue(this HTMLSelectElement select, bool value)
         {
             select.Value = value.ToString().ToLower();
+            return select;
+        }
+        public static HTMLSelectElement SetAdjacencyValue(this HTMLSelectElement select, AdjacencyType value)
+        {
+            select.Value = ((int)value).ToString();
             return select;
         }
         public static HTMLSelectElement SetValue<T>(this HTMLSelectElement select, T value) where T : struct, System.Enum
