@@ -97,8 +97,17 @@ namespace CustomizableGameofLife
                 {
                     string s = (string)starterPositions;
                     if (!string.IsNullOrEmpty(s))
-                        foreach (var pos in (JsonConvert.DeserializeObject<(int x, int y)[]>(s)))
-                            Squares.Add(pos, SquareType.Cell);
+                    {
+                        var jsonRaw = JSON.Parse(s).ToDynamic();
+                        if (jsonRaw.length == 0 || jsonRaw[0].Item3 == null)
+                        {
+                            foreach (var pos in (JsonConvert.DeserializeObject<(int x, int y)[]>(s)))
+                                Squares.Add(pos, SquareType.Cell);
+                        }
+                        else
+                            foreach (var squareInfo in (JsonConvert.DeserializeObject<(int x, int y, SquareType squareType)[]>(s)))
+                                Squares.Add((squareInfo.x, squareInfo.y), squareInfo.squareType);
+                    }
                 }
             }
             if (playing)
@@ -106,13 +115,13 @@ namespace CustomizableGameofLife
             Draw();
         }
 
-        public static List<(int x, int y, SquareType)> GetCoordinatesInteral()
+        public static List<(int x, int y, SquareType squareType)> GetCoordinatesInteral()
         {
             (int x, int y) offsetCoords = (NegDiv(offsetPos.x, xMultiplier), NegDiv(offsetPos.y, yMultiplier));
             return Squares.ToList().ConvertAll(s => (x: s.Key.x + offsetCoords.x, y: s.Key.y + offsetCoords.y, squareType: s.Value));
         }
 
-        public static List<(int x, int y, SquareType)> GetNormalizedCoordinates ()
+        public static List<(int x, int y, SquareType squareType)> GetNormalizedCoordinates ()
         {
             List<(int x, int y, SquareType squareType)> coords = GetCoordinatesInteral();
             coords = coords.Where(c => c.x >= 0 && c.y >= 0 && c.x < width && c.y < height).ToList();
