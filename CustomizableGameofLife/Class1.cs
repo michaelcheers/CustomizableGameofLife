@@ -50,7 +50,7 @@ namespace CustomizableGameofLife
             .Add(NextSquareTypeButton = new HTMLButtonElement
             {
                 ClassName = "btn btn-primary", OnClick = e => NextSquareType()
-            }.Add("Cell"))
+            }.Add(SquareType.Cell.ToCamelString()))
 
             .Add(PlayButton = new HTMLButtonElement
             {
