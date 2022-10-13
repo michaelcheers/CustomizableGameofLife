@@ -47,6 +47,11 @@ namespace CustomizableGameofLife
                 ClassName = "btn btn-primary", OnClick = e => SaveAsStarter()
             }.Add("Save as Starter"))
 
+            .Add(NextSquareTypeButton = new HTMLButtonElement
+            {
+                ClassName = "btn btn-primary", OnClick = e => NextSquareType()
+            }.Add("Cell"))
+
             .Add(PlayButton = new HTMLButtonElement
             {
                 ClassName = "btn btn-primary", OnClick = e => InvertIsPlaying()
@@ -56,6 +61,15 @@ namespace CustomizableGameofLife
             {
                 ClassName = "btn btn-primary", OnClick = e => ShowModal(ModalType.Settings)
             }.Add("⚙"));
+
+        public static SquareType SquareTypePlacing;
+        public static HTMLButtonElement NextSquareTypeButton;
+
+        public static void NextSquareType ()
+        {
+            SquareTypePlacing = (SquareType)(((int)SquareTypePlacing + 1) % (int)SquareType.Count);
+            NextSquareTypeButton.InnerHTML = SquareTypePlacing.ToCamelString();
+        }
 
         public static HTMLDivElement RightHotbar = new HTMLDivElement
         {
@@ -84,7 +98,7 @@ namespace CustomizableGameofLife
                     string s = (string)starterPositions;
                     if (!string.IsNullOrEmpty(s))
                         foreach (var pos in (JsonConvert.DeserializeObject<(int x, int y)[]>(s)))
-                            Squares.Add(pos);
+                            Squares.Add(pos, SquareType.Cell);
                 }
             }
             if (playing)
@@ -92,18 +106,18 @@ namespace CustomizableGameofLife
             Draw();
         }
 
-        public static List<(int x, int y)> GetCoordinatesInteral()
+        public static List<(int x, int y, SquareType)> GetCoordinatesInteral()
         {
             (int x, int y) offsetCoords = (NegDiv(offsetPos.x, xMultiplier), NegDiv(offsetPos.y, yMultiplier));
-            return Squares.ToList().ConvertAll(s => (x: s.x + offsetCoords.x, y: s.y + offsetCoords.y));
+            return Squares.ToList().ConvertAll(s => (x: s.Key.x + offsetCoords.x, y: s.Key.y + offsetCoords.y, squareType: s.Value));
         }
 
-        public static List<(int x, int y)> GetNormalizedCoordinates ()
+        public static List<(int x, int y, SquareType)> GetNormalizedCoordinates ()
         {
-            List<(int x, int y)> coords = GetCoordinatesInteral();
+            List<(int x, int y, SquareType squareType)> coords = GetCoordinatesInteral();
             coords = coords.Where(c => c.x >= 0 && c.y >= 0 && c.x < width && c.y < height).ToList();
             int minX = coords.Min(c => c.x), minY = coords.Min(c => c.y);
-            coords = coords.Select(c => (c.x - minX, c.y - minY)).ToList();
+            coords = coords.Select(c => (c.x - minX, c.y - minY, c.squareType)).ToList();
             return coords;
         }
 
@@ -224,7 +238,7 @@ namespace CustomizableGameofLife
             BottomCanvasContext = BottomCanvas.GetContext(CanvasTypes.CanvasContext2DType.CanvasRenderingContext2D),
             DOMCanvasContext = DOMCanvas.GetContext(CanvasTypes.CanvasContext2DType.CanvasRenderingContext2D);
 
-        public static HashSet<(int x, int y)> Squares = new HashSet<(int x, int y)>();
+        public static Dictionary<(int x, int y), SquareType> Squares = new Dictionary<(int x, int y), SquareType>();
         public static (int x, int y) offsetPos = (0, 0);
 
         public static (int x, int y) MousePos (this MouseEvent e)
@@ -559,7 +573,7 @@ namespace CustomizableGameofLife
                 var mousePos = e.MousePos();
                 (int clickX, int clickY) = (NegDiv(mousePos.x - offsetPos.x, xMultiplier), NegDiv((mousePos.y - offsetPos.y), yMultiplier));
                 if (!Squares.Remove((clickX, clickY)))
-                    Squares.Add((clickX, clickY));
+                    Squares.Add((clickX, clickY), SquareTypePlacing);
                 Draw();
             }
 
@@ -615,7 +629,7 @@ namespace CustomizableGameofLife
                 int x_ = x - 1 + (L % 3),
                     y_ = y - 1 + L / 3;
 
-                if (Squares.Contains((x_, y_)))
+                if (Squares.ContainsAlive((x_, y_)))
                     adjacentCells += (int)adjacencyRule;
             }
             return adjacentCells > maxAdjacentCells ? maxAdjacentCells : adjacentCells;
@@ -626,10 +640,13 @@ namespace CustomizableGameofLife
             //updating = true;
 
             List<(int, int)> removing = new List<(int, int)>();
-            List<(int, int)> adding = new List<(int, int)>();
+            HashSet<(int, int)> adding = new HashSet<(int, int)>();
 
-            foreach ((int x, int y) in Squares)
+            foreach ((var pos, SquareType squareType) in Squares)
             {
+                (int x, int y) = pos;
+                if (!squareType.IsAlive())
+                    continue;
                 int adjacentCells = 0;
                 int n = 0;
                 for (int L = 0; L <= 8; L++)
@@ -641,8 +658,11 @@ namespace CustomizableGameofLife
                     int x_ = x - 1 + (L % 3),
                         y_ = y - 1 + L / 3;
 
-                    if (Squares.Contains((x_, y_)))
-                        adjacentCells += (int)adjacencyRule;
+                    if (Squares.TryGetValue((x_, y_), out SquareType squareInfo))
+                    {
+                        if (squareInfo.IsAlive())
+                            adjacentCells += (int)adjacencyRule;
+                    }
                     else
                     {
                         // Create new cells.
@@ -659,9 +679,10 @@ namespace CustomizableGameofLife
                 if (adjacentCells > maxAdjacentCells)
                     adjacentCells = maxAdjacentCells;
 
-                if (!livingRules[adjacentCells])
+                if (!squareType.IsUndead() && !livingRules[adjacentCells])
                     removing.Add((x, y));
             }
+
             foreach ((int x, int y) in removing)
             {
                 if (!Squares.Remove((x, y))) throw new Exception("Square tried to be removed but didn't exist");
@@ -669,7 +690,7 @@ namespace CustomizableGameofLife
 
             foreach ((int x, int y) in adding)
             {
-                Squares.Add((x, y));
+                Squares.Add((x, y), SquareType.Cell);
             }
         }
 
@@ -679,12 +700,13 @@ namespace CustomizableGameofLife
             TopCanvasContext.ClearRect(0, 0, DOMCanvas.Width, DOMCanvas.Height);
             (int offsetX, int offsetY) = offsetPos;
             Uint8ClampedArray imageDataArray = CreateImageDataArray(width + 2, height + 2);
-            foreach ((int x, int y) in Squares)
+            foreach ((var pos, SquareType squareType) in Squares)
             {
+                (int x, int y) = pos;
                 int drawX = x + (offsetX / xMultiplier) + 1, drawY = y + (offsetY / yMultiplier) + 1;
                 if (drawX < 0 || drawX >= width + 2 || drawY < 0 || drawY >= height + 2) continue;
                 int idx = drawX + drawY * (width + 2);
-                imageDataArray[idx * 4 + 3] = 255;
+                imageDataArray[idx * 4 + 3] = squareType.IsUndead() ? (byte)127 : (byte)255;
             }
             ImageData imageData = new ImageData(imageDataArray, (uint)(width + 2), (uint)(height + 2));
             TopCanvasContext.PutImageData(imageData, 0, 0);

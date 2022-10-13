@@ -13,14 +13,19 @@ namespace CustomizableGameofLife
     /// - Brick (IsCell: false, IsWall: true) | Grey
     /// </summary>
 
-    internal class Square
+    public static class SquareExtensions
     {
-        // Brick is full cell. Wall does not count a cell.
-        public bool IsCell;
-        public bool IsWall;
+        public static bool IsAlive (this SquareType squareType) => squareType != SquareType.Brick;
+        public static bool IsUndead (this SquareType squareType) => squareType != SquareType.Cell;
+        public static bool ContainsAlive<T> (this Dictionary<T, SquareType> dic, T key)
+            => dic.TryGetValue(key, out SquareType squareType) && squareType.IsAlive();
+    }
 
-        //public int MinAge;
-        //public int MaxAge;
-        //public int MaxAloneTime;
+    public enum SquareType
+    {
+        Cell,  // Black
+        Wall,  // Grey
+        Brick, // Grey
+        Count
     }
 }
