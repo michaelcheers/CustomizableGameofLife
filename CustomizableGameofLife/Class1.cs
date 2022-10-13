@@ -715,7 +715,12 @@ namespace CustomizableGameofLife
                 int drawX = x + (offsetX / xMultiplier) + 1, drawY = y + (offsetY / yMultiplier) + 1;
                 if (drawX < 0 || drawX >= width + 2 || drawY < 0 || drawY >= height + 2) continue;
                 int idx = drawX + drawY * (width + 2);
-                imageDataArray[idx * 4 + 3] = squareType.IsUndead() ? (byte)127 : (byte)255;
+                imageDataArray[idx * 4 + 3] = (byte)(
+                    squareType == SquareType.Cell ? 255 :
+                    squareType == SquareType.Wall ? 170 :
+                    squareType == SquareType.Brick ? 85 :
+                    throw new Exception("Unknown square type")
+                );
             }
             ImageData imageData = new ImageData(imageDataArray, (uint)(width + 2), (uint)(height + 2));
             TopCanvasContext.PutImageData(imageData, 0, 0);
