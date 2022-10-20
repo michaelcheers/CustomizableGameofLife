@@ -50,7 +50,7 @@ namespace CustomizableGameofLife
             .Add(NextSquareTypeButton = new HTMLButtonElement
             {
                 ClassName = "btn btn-primary", OnClick = e => NextSquareType()
-            }.Add(SquareType.Cell.ToCamelString()))
+            }.Add("Wall"))
 
             .Add(PlayButton = new HTMLButtonElement
             {
@@ -62,13 +62,13 @@ namespace CustomizableGameofLife
                 ClassName = "btn btn-primary", OnClick = e => ShowModal(ModalType.Settings)
             }.Add("⚙"));
 
-        public static SquareType SquareTypePlacing;
+        public static SquareType SquareTypePlacing = SquareType.Count;
         public static HTMLButtonElement NextSquareTypeButton;
 
         public static void NextSquareType ()
         {
-            SquareTypePlacing = (SquareType)(((int)SquareTypePlacing + 1) % (int)SquareType.Count);
-            NextSquareTypeButton.InnerHTML = SquareTypePlacing.ToCamelString();
+            SquareTypePlacing = (SquareType)(((int)SquareTypePlacing + 1) % (int)(SquareType.Count + 1));
+            NextSquareTypeButton.InnerHTML = SquareTypePlacing == SquareType.Count ? "Wall" : SquareTypePlacing.ToCamelString();
         }
 
         public static HTMLDivElement RightHotbar = new HTMLDivElement
@@ -89,6 +89,7 @@ namespace CustomizableGameofLife
         {
             if (!Global.Confirm("Any unsaved changes will be lost. Continue?")) return;
             Squares.Clear();
+            Dividers.Clear();
             if (!makeBlank)
             {
                 offsetPos = (0, 0);
@@ -248,6 +249,7 @@ namespace CustomizableGameofLife
             DOMCanvasContext = DOMCanvas.GetContext(CanvasTypes.CanvasContext2DType.CanvasRenderingContext2D);
 
         public static Dictionary<(int x, int y), SquareType> Squares = new Dictionary<(int x, int y), SquareType>();
+        public static Dictionary<(int x, int y), DividersInfo> Dividers = new Dictionary<(int x, int y), DividersInfo>();
         public static (int x, int y) offsetPos = (0, 0);
 
         public static (int x, int y) MousePos (this MouseEvent e)
@@ -261,6 +263,9 @@ namespace CustomizableGameofLife
             int res = a / b;
             return (a < 0 && a != b * res) ? res - 1 : res;
         }
+
+        public static double NegDivDouble(double a, double b)
+            => a >= 0 ? a / b : (a - b + 1) / b;
 
         public const int maxAdjacentCells = 8;
 
@@ -580,9 +585,100 @@ namespace CustomizableGameofLife
             {
                 //if ((@event.Buttons & 1) == 0) return;
                 var mousePos = e.MousePos();
-                (int clickX, int clickY) = (NegDiv(mousePos.x - offsetPos.x, xMultiplier), NegDiv((mousePos.y - offsetPos.y), yMultiplier));
-                if (!Squares.Remove((clickX, clickY)))
-                    Squares.Add((clickX, clickY), SquareTypePlacing);
+                (double clickX_, double clickY_) = (NegDivDouble((double)mousePos.x - offsetPos.x, xMultiplier), NegDivDouble((double)mousePos.y - offsetPos.y, yMultiplier));
+                bool placeNormally = true;
+                if (SquareTypePlacing == SquareType.Count)
+                {
+                    // Place dividers
+                    placeNormally = false;
+                    int xDiv = 0, yDiv = 0;
+                    if ((clickX_) % 1 <= 0.2)
+                        xDiv = -1;
+                    else if ((clickX_) % 1 >= 0.8)
+                        xDiv = 1;
+                    if ((clickY_) % 1 <= 0.2)
+                        yDiv = -1;
+                    else if ((clickY_) % 1 >= 0.8)
+                        yDiv = 1;
+                    DividersInfo dividersInfo = DividersInfo.None;
+                    Action<DividersInfo> Assign = (DividersInfo divInfo) =>
+                    {
+                        int x = (int)clickX_ + xDiv, y = (int)clickY_ + yDiv;
+                        if (divInfo != DividersInfo.None)
+                        {
+                            if (!Dividers.TryGetValue(((int)x, (int)y), out DividersInfo dividers))
+                                dividers = DividersInfo.None;
+                            Dividers[(x, y)] = dividers ^ divInfo;
+                        }
+                    };
+                    switch (xDiv)
+                    {
+                        case -1:
+                            switch (yDiv)
+                            {
+                                case -1:
+                                    Assign(DividersInfo.BottomRight);
+                                    break;
+                                case 0:
+                                    Assign(DividersInfo.Right);
+                                    break;
+                                case 1:
+                                    yDiv = 0;
+                                    Assign(DividersInfo.BottomRight);
+                                    break;
+                                default:
+                                    throw new InvalidOperationException();
+                            }
+                            break;
+                        case 0:
+                            switch (yDiv)
+                            {
+                                case -1:
+                                    Assign(DividersInfo.Bottom);
+                                    break;
+                                case 0:
+                                    placeNormally = true;
+                                    break;
+                                case 1:
+                                    dividersInfo = DividersInfo.Bottom;
+                                    break;
+                                default:
+                                    throw new InvalidOperationException();
+                            }
+                            break;
+                        case 1:
+                            switch (yDiv)
+                            {
+                                case -1:
+                                    xDiv = 0;
+                                    Assign(DividersInfo.BottomRight);
+                                    break;
+                                case 0:
+                                    dividersInfo = DividersInfo.Right;
+                                    break;
+                                case 1:
+                                    dividersInfo = DividersInfo.BottomRight;
+                                    break;
+                                default:
+                                    throw new InvalidOperationException();
+                            }
+                            break;
+                        default:
+                            throw new InvalidOperationException();
+                    }
+                    if (dividersInfo != DividersInfo.None)
+                    {
+                        xDiv = 0;
+                        yDiv = 0;
+                        Assign(dividersInfo);
+                    }
+                }
+                if (placeNormally)
+                {
+                    (int clickX, int clickY) = ((int)clickX_, (int)clickY_);
+                    if (!Squares.Remove((clickX, clickY)))
+                        Squares.Add((clickX, clickY), SquareTypePlacing == SquareType.Count ? SquareType.Cell : SquareTypePlacing);
+                }
                 Draw();
             }
 
@@ -638,10 +734,54 @@ namespace CustomizableGameofLife
                 int x_ = x - 1 + (L % 3),
                     y_ = y - 1 + L / 3;
 
+                if (HasDividers(x, y, L))
+                    continue;
+
                 if (Squares.ContainsAlive((x_, y_)))
                     adjacentCells += (int)adjacencyRule;
             }
             return adjacentCells > maxAdjacentCells ? maxAdjacentCells : adjacentCells;
+        }
+
+        public static bool HasDividers (int x, int y, int L)
+        {
+            DividersInfo toCheck;
+            switch (L)
+            {
+                case 0:
+                    x--;
+                    y--;
+                    toCheck = DividersInfo.BottomRight;
+                    break;
+                case 1:
+                    y--;
+                    toCheck = DividersInfo.Bottom;
+                    break;
+                case 2:
+                    y--;
+                    toCheck = DividersInfo.BottomRight;
+                    break;
+                case 3:
+                    x--;
+                    toCheck = DividersInfo.Right;
+                    break;
+                case 5:
+                    toCheck = DividersInfo.Right;
+                    break;
+                case 6:
+                    x--;
+                    toCheck = DividersInfo.BottomRight;
+                    break;
+                case 7:
+                    toCheck = DividersInfo.Bottom;
+                    break;
+                case 8:
+                    toCheck = DividersInfo.BottomRight;
+                    break;
+                default:
+                    throw new InvalidOperationException();
+            }
+            return Dividers.TryGetValue((x, y), out DividersInfo dividersInfo) && (dividersInfo & toCheck) != 0;
         }
 
         public static void Update()
@@ -666,6 +806,9 @@ namespace CustomizableGameofLife
 
                     int x_ = x - 1 + (L % 3),
                         y_ = y - 1 + L / 3;
+
+                    if (HasDividers(x, y, L))
+                        continue;
 
                     if (Squares.TryGetValue((x_, y_), out SquareType squareInfo))
                     {
@@ -703,21 +846,29 @@ namespace CustomizableGameofLife
             }
         }
 
-        public static void Draw ()
+        public static void Draw()
         {
             DOMCanvasContext.ClearRect(0, 0, DOMCanvas.Width, DOMCanvas.Height);
             TopCanvasContext.ClearRect(0, 0, DOMCanvas.Width, DOMCanvas.Height);
             (int offsetX, int offsetY) = offsetPos;
             Uint8ClampedArray imageDataArray = CreateImageDataArray(width + 2, height + 2);
-            foreach ((var pos, SquareType squareType) in Squares)
+            (int drawX, int drawY)? GetDrawPos ((int x, int y) pos)
             {
                 (int x, int y) = pos;
                 int drawX = x + (offsetX / xMultiplier) + 1, drawY = y + (offsetY / yMultiplier) + 1;
-                if (drawX < 0 || drawX >= width + 2 || drawY < 0 || drawY >= height + 2) continue;
+                if (drawX < 0 || drawX >= width + 2 || drawY < 0 || drawY >= height + 2) return null;
+                return (drawX, drawY);
+            }
+            foreach ((var pos, SquareType squareType) in Squares)
+            {
+                var drawPos = GetDrawPos(pos);
+                if (drawPos == null)
+                    continue;
+                (int drawX, int drawY) = drawPos.Value;
                 int idx = drawX + drawY * (width + 2);
                 imageDataArray[idx * 4 + 3] = (byte)(
                     squareType == SquareType.Cell ? 255 :
-                    squareType == SquareType.Wall ? 170 :
+                    squareType == SquareType.WallBlock ? 170 :
                     squareType == SquareType.Brick ? 85 :
                     throw new Exception("Unknown square type")
                 );
@@ -727,6 +878,67 @@ namespace CustomizableGameofLife
             DOMCanvasContext.DrawImage(BottomCanvas, offsetX % xMultiplier - xMultiplier, offsetY % yMultiplier - yMultiplier);
             DOMCanvasContext.ImageSmoothingEnabled = false;
             DOMCanvasContext.DrawImage(TopCanvas, (offsetX % xMultiplier) - xMultiplier, (offsetY % yMultiplier) - yMultiplier, (width + 2) * xMultiplier, (height + 2) * yMultiplier);
+            (double drawX, double drawY)? GetFinalDrawPos ((int x, int y) pos)
+            {
+                var p = GetDrawPos(pos);
+                if (p == null)
+                    return null;
+                (double drawX, double drawY) = (p.Value.drawX, p.Value.drawY);
+                drawX *= (width + 2) * xMultiplier / TopCanvas.Width;
+                drawY *= (height + 2) * yMultiplier / TopCanvas.Height;
+                drawX += (offsetX % xMultiplier) - xMultiplier;
+                drawY += (offsetY % yMultiplier) - yMultiplier;
+                return (drawX, drawY);
+            }
+            void DrawLine((double drawX, double drawY)? start, (double drawX, double drawY)? end)
+            {
+                if (!start.HasValue || !end.HasValue)
+                    return;
+                var startPos = start.Value;
+                var endPos = end.Value;
+
+                DOMCanvasContext.BeginPath();
+                DOMCanvasContext.MoveTo(startPos.drawX, startPos.drawY);
+                DOMCanvasContext.LineTo(endPos.drawX, endPos.drawY);
+                DOMCanvasContext.LineWidth = 2;
+                DOMCanvasContext.StrokeStyle = "red";// "rgb(170, 170, 170)";
+                DOMCanvasContext.Stroke();
+            }
+            void DrawMarker((double drawX, double drawY)? position)
+            {
+                if (!position.HasValue)
+                    return;
+                (double drawX, double drawY) = position.Value;
+
+                DOMCanvasContext.BeginPath();
+                DOMCanvasContext.Arc(drawX, drawY, xMultiplier / 8, 0, 2 * Math.PI);
+                DOMCanvasContext.FillStyle = "red"; //"rgb(170, 170, 170)";
+                DOMCanvasContext.Fill();
+            }
+            foreach (((int x, int y) pos, DividersInfo dividers) in Dividers)
+            {
+                foreach (var divider in new[] { DividersInfo.BottomRight, DividersInfo.Right, DividersInfo.Bottom })
+                {
+                    if (!dividers.HasFlag(divider))
+                        continue;
+                    switch (divider)
+                    {
+                        case DividersInfo.Right:
+                            (int x, int y) startPos = ((int)(pos.x + 1), (int)pos.y);
+                            (int x, int y) endPos = ((int)(pos.x + 1), (int)(pos.y + 1));
+                            DrawLine(GetFinalDrawPos(startPos), GetFinalDrawPos(endPos));
+                            break;
+                        case DividersInfo.Bottom:
+                            DrawLine(GetFinalDrawPos(((int)(pos.x), (int)(pos.y + 1))), GetFinalDrawPos(((int)(pos.x + 1), (int)(pos.y + 1))));
+                            break;
+                        case DividersInfo.BottomRight:
+                            DrawMarker(GetFinalDrawPos(((int)(pos.x + 1), (int)(pos.y + 1))));
+                            break;
+                        default:
+                            throw new InvalidOperationException();
+                    }
+                }
+            }
         }
 
         public static int frameNum = 0;

@@ -24,8 +24,17 @@ namespace CustomizableGameofLife
     public enum SquareType
     {
         Cell,  // Black
-        Wall,  // Grey
+        WallBlock,  // Grey
         Brick, // Grey
         Count
+    }
+
+    [Flags]
+    public enum DividersInfo
+    {
+        None = 0,
+        Right = 1 << 0,
+        Bottom = 1 << 1,
+        BottomRight = 1 << 2
     }
 }
