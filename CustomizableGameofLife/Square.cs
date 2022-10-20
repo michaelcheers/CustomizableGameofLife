@@ -15,7 +15,7 @@ namespace CustomizableGameofLife
 
     public static class SquareExtensions
     {
-        public static bool IsAlive (this SquareType squareType) => squareType != SquareType.ImmortalCell;
+        public static bool IsAlive (this SquareType squareType) => squareType != SquareType.Brick;
         public static bool IsUndead (this SquareType squareType) => squareType != SquareType.Cell;
         public static bool ContainsAlive<T> (this Dictionary<T, SquareType> dic, T key)
             => dic.TryGetValue(key, out SquareType squareType) && squareType.IsAlive();
@@ -24,8 +24,8 @@ namespace CustomizableGameofLife
     public enum SquareType
     {
         Cell,  // Black
-        Brick,  // Grey
-        ImmortalCell, // Grey
+        ImmortalCell,  // Grey
+        Brick, // Grey
         Count
     }
 
