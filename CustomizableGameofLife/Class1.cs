@@ -868,8 +868,8 @@ namespace CustomizableGameofLife
                 int idx = drawX + drawY * (width + 2);
                 imageDataArray[idx * 4 + 3] = (byte)(
                     squareType == SquareType.Cell ? 255 :
-                    squareType == SquareType.WallBlock ? 170 :
-                    squareType == SquareType.Brick ? 85 :
+                    squareType == SquareType.Brick ? 170 :
+                    squareType == SquareType.ImmortalCell ? 85 :
                     throw new Exception("Unknown square type")
                 );
             }
