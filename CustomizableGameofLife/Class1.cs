@@ -80,6 +80,8 @@ namespace CustomizableGameofLife
         public static void Zoom (bool zoomIn)
         {
             xMultiplier += zoomIn ? 1 : -1;
+            if (xMultiplier <= 1)
+                xMultiplier = 2;
             Draw();
         }
 
