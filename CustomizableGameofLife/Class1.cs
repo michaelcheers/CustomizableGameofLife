@@ -14,9 +14,11 @@ namespace CustomizableGameofLife
 {
     public static class App
     {
-        public const int xMultiplier = 20, yMultiplier = 20;
+        public static int xMultiplier = 20;
+        public static int yMultiplier => xMultiplier;
         public static int screenWidth = Window.InnerWidth, screenHeight = Window.InnerHeight;
-        public static int width = screenWidth / xMultiplier, height = screenHeight / yMultiplier;
+        public static int width => (int)Math.Ceiling((double)screenWidth / xMultiplier);
+        public static int height => (int)Math.Ceiling((double)screenHeight / yMultiplier);
 
         public static HTMLDivElement Hotbar = new HTMLDivElement
         {
@@ -47,6 +49,16 @@ namespace CustomizableGameofLife
                 ClassName = "btn btn-primary", OnClick = e => SaveAsStarter()
             }.Add("Save as Starter"))
 
+            .Add(new HTMLButtonElement
+            {
+                ClassName = "btn btn-primary", OnClick = e => Zoom(zoomIn: false)
+            }.Add("Zoom Out"))
+
+            .Add(new HTMLButtonElement
+            {
+                ClassName = "btn btn-primary", OnClick = e => Zoom(zoomIn: true)
+            }.Add("Zoom In"))
+
             .Add(NextSquareTypeButton = new HTMLButtonElement
             {
                 ClassName = "btn btn-primary", OnClick = e => NextSquareType()
@@ -64,6 +76,12 @@ namespace CustomizableGameofLife
 
         public static SquareType SquareTypePlacing = SquareType.Count;
         public static HTMLButtonElement NextSquareTypeButton;
+
+        public static void Zoom (bool zoomIn)
+        {
+            xMultiplier += zoomIn ? 1 : -1;
+            Draw();
+        }
 
         public static void NextSquareType ()
         {
@@ -240,13 +258,29 @@ namespace CustomizableGameofLife
         public static HTMLCanvasElement CreateTopCanvas()
             => new HTMLCanvasElement { Width = width + 2, Height = height + 2 };
         public static HTMLCanvasElement CreateBottomCanvas()
-            => new HTMLCanvasElement { Width = screenWidth + 2 * xMultiplier, Height = screenHeight + 2 * yMultiplier };
+        {
+            HTMLCanvasElement BottomCanvas = new HTMLCanvasElement { Width = screenWidth + 2 * xMultiplier, Height = screenHeight + 2 * yMultiplier };
+            var BottomCanvasContext = BottomCanvas.GetContext(CanvasTypes.CanvasContext2DType.CanvasRenderingContext2D);
+            BottomCanvasContext.StrokeStyle = "black";
+            BottomCanvasContext.Translate(0.5, 0.5);
+            BottomCanvasContext.LineWidth = 1;
+            for (int x = 0; x <= (width + 2); x++)
+            {
+                BottomCanvasContext.MoveTo(x * xMultiplier, 0);
+                BottomCanvasContext.LineTo(x * xMultiplier, (height + 3) * yMultiplier);
+            }
+            for (int y = 0; y <= (height + 2); y++)
+            {
+                BottomCanvasContext.MoveTo(0, y * yMultiplier);
+                BottomCanvasContext.LineTo((width + 3) * xMultiplier, y * yMultiplier);
+            }
+            for (int n = 0; n < 10; n++)
+                BottomCanvasContext.Stroke();
+            return BottomCanvas;
+        }
 
-        public static HTMLCanvasElement DOMCanvas = CreateCanvas(), BottomCanvas = CreateBottomCanvas(), TopCanvas = CreateTopCanvas();
-        public static CanvasRenderingContext2D
-            TopCanvasContext = TopCanvas.GetContext(CanvasTypes.CanvasContext2DType.CanvasRenderingContext2D),
-            BottomCanvasContext = BottomCanvas.GetContext(CanvasTypes.CanvasContext2DType.CanvasRenderingContext2D),
-            DOMCanvasContext = DOMCanvas.GetContext(CanvasTypes.CanvasContext2DType.CanvasRenderingContext2D);
+        public static HTMLCanvasElement DOMCanvas = CreateCanvas();
+        public static CanvasRenderingContext2D DOMCanvasContext = DOMCanvas.GetContext(CanvasTypes.CanvasContext2DType.CanvasRenderingContext2D);
 
         public static Dictionary<(int x, int y), SquareType> Squares = new Dictionary<(int x, int y), SquareType>();
         public static Dictionary<(int x, int y), DividersInfo> Dividers = new Dictionary<(int x, int y), DividersInfo>();
@@ -317,8 +351,8 @@ namespace CustomizableGameofLife
 
         public static HTMLCanvasElement DrawShape (HashSet<(int x, int y)> Squares)
         {
-            const int xMultiplier = App.xMultiplier * 2;
-            const int yMultiplier = App.yMultiplier * 2;
+            int xMultiplier = App.xMultiplier * 2;
+            int yMultiplier = App.yMultiplier * 2;
 
             // Getting width and height of shape
             int width = Squares.Max(s => s.x) + 1;
@@ -561,22 +595,6 @@ namespace CustomizableGameofLife
             backgroundDiv.Add(Hotbar);
             backgroundDiv.Add(RightHotbar);
             Document.Body.AppendChild(backgroundDiv);
-
-            BottomCanvasContext.StrokeStyle = "black";
-            BottomCanvasContext.Translate(0.5, 0.5);
-            BottomCanvasContext.LineWidth = 1;
-            for (int x = 0; x <= (width + 2); x++)
-            {
-                BottomCanvasContext.MoveTo(x * xMultiplier, 0);
-                BottomCanvasContext.LineTo(x * xMultiplier, (height + 3) * yMultiplier);
-            }
-            for (int y = 0; y <= (height + 2); y++)
-            {
-                BottomCanvasContext.MoveTo(0, y * yMultiplier);
-                BottomCanvasContext.LineTo((width + 3) * xMultiplier, y * yMultiplier);
-            }
-            for (int n = 0; n < 10; n++)
-                BottomCanvasContext.Stroke();
 
             (int x, int y) draggingPos = (0, 0);
             (int x, int y) originalPos = (0, 0);
@@ -846,10 +864,21 @@ namespace CustomizableGameofLife
             }
         }
 
+        public static (int xMultiplier, HTMLCanvasElement canvas) LastBottomCanvas = (0, null);
+
         public static void Draw()
         {
+            HTMLCanvasElement TopCanvas = CreateTopCanvas();
+            HTMLCanvasElement BottomCanvas = null;
+            if (LastBottomCanvas.xMultiplier == xMultiplier)
+                BottomCanvas = LastBottomCanvas.canvas;
+            if (BottomCanvas == null)
+            {
+                BottomCanvas = CreateBottomCanvas();
+                LastBottomCanvas = (xMultiplier, BottomCanvas);
+            }
+            CanvasRenderingContext2D TopCanvasContext = TopCanvas.GetContext(CanvasTypes.CanvasContext2DType.CanvasRenderingContext2D);
             DOMCanvasContext.ClearRect(0, 0, DOMCanvas.Width, DOMCanvas.Height);
-            TopCanvasContext.ClearRect(0, 0, DOMCanvas.Width, DOMCanvas.Height);
             (int offsetX, int offsetY) = offsetPos;
             Uint8ClampedArray imageDataArray = CreateImageDataArray(width + 2, height + 2);
             (int drawX, int drawY)? GetDrawPos ((int x, int y) pos)
