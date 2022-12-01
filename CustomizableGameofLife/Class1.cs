@@ -104,6 +104,10 @@ namespace CustomizableGameofLife
         {
             CurrentGridType = (GridType)(((int)CurrentGridType + 1) % (int)GridType.Count);
             NextGridTypeButton.InnerHTML = CurrentGridType.ToCamelString();
+            if (CurrentGridType == GridType.Triangle)
+                xMultiplier *= 2;
+            else if (CurrentGridType == GridType.Square)
+                xMultiplier /= 2;
             switch (CurrentGridType)
             {
                 case GridType.Square:
@@ -112,9 +116,9 @@ namespace CustomizableGameofLife
                 case GridType.Hex:
                     Grid = new HexGrid();
                     break;
-                //case GridType.Triangle:
-                //    Grid = new TriangleGrid();
-                //    break;
+                case GridType.Triangle:
+                    Grid = new TriangleGrid();
+                    break;
             }
             Draw();
         }
@@ -285,7 +289,7 @@ namespace CustomizableGameofLife
 
         public static bool[] livingRules   = new bool[9] { false, false, true, true, false, false, false, false, false };
         public static bool[] deadRules     = new bool[9] { false, false, false, true, false, false, false, false, false };
-        public static AdjacencyType[] adjacencyRules = new AdjacencyType[maxAdjacentCells] { AdjacencyType.One, AdjacencyType.One, AdjacencyType.One, AdjacencyType.One, AdjacencyType.One, AdjacencyType.One, AdjacencyType.One, AdjacencyType.One };
+        public static AdjacencyType[] adjacencyRules = new AdjacencyType[maxAdjacentCells] { AdjacencyType.One, AdjacencyType.One, AdjacencyType.One, AdjacencyType.One, AdjacencyType.One, AdjacencyType.One, AdjacencyType.One, AdjacencyType.One, AdjacencyType.One, AdjacencyType.One, AdjacencyType.One, AdjacencyType.One };
 
         public static HTMLCanvasElement CreateCanvas ()
             => new HTMLCanvasElement { Width = screenWidth, Height = screenHeight };
@@ -324,35 +328,46 @@ namespace CustomizableGameofLife
                     }
                 }
             }
-            else if (Grid is TriangleGrid/* || Grid is HexGrid*/)
+            else if (Grid is TriangleGrid t/* || Grid is HexGrid*/)
             {
-                HexGrid grid = new HexGrid();
-                double xOffset = width / 2 * App.xMultiplier + offsetPos.x
-                     , yOffset = height * App.xMultiplier + offsetPos.y;
+                for (int a = -(int)hypo(width, height); a < (int)hypo(width, height); a++)
+                {
+                    for (int b = -(int)hypo(width, height); b < (int)hypo(width, height); b++)
+                    {
+                        for (TriangleLocation tl = TriangleLocation.TopLeft; tl < TriangleLocation.Count; tl++)
+                        {
+                            (int x, int y) = t.GetDrawPosition((a, b, tl));
+                            BottomCanvasContext.DrawTriangle(x, y, xMultiplier * 2 / 3, tl, stroke: true);
+                        }
+                    }
+                }
+                //HexGrid grid = new HexGrid();
+                //double xOffset = width / 2 * App.xMultiplier + offsetPos.x
+                //     , yOffset = height * App.xMultiplier + offsetPos.y;
 
-                int minWidth = -2, minHeight = -2;
-                int maxWidth = (int)Math.Ceiling(hypo(width, height)), maxHeight = (int)Math.Ceiling(hypo(width, height));
-                for (int _30l = minWidth - 2; _30l <= (maxWidth + 2); _30l++)
-                {
-                    var pos1 = grid.GetDrawPosition((_30l, minHeight - 3));
-                    var pos2 = grid.GetDrawPosition((_30l, maxHeight + 3));
-                    BottomCanvasContext.MoveTo(pos1.x + xOffset, pos1.y + yOffset);
-                    BottomCanvasContext.LineTo(pos2.x + xOffset, pos2.y + yOffset);
-                }
-                for (int _30r = minHeight - 2; _30r <= (maxHeight + 2); _30r++)
-                {
-                    var pos1 = grid.GetDrawPosition((minWidth - 3, _30r));
-                    var pos2 = grid.GetDrawPosition((maxWidth + 3, _30r));
-                    BottomCanvasContext.MoveTo(pos1.x + xOffset, pos1.y + yOffset);
-                    BottomCanvasContext.LineTo(pos2.x + xOffset, pos2.y + yOffset);
-                }
-                for (int y = minHeight - 2; y <= (maxHeight + 2); y++)
-                {
-                    var pos1 = grid.GetDrawPosition((-width / xMultiplier, y));
-                    var pos2 = grid.GetDrawPosition((y, -width / xMultiplier));
-                    BottomCanvasContext.MoveTo(pos1.x + xOffset, pos1.y + yOffset);
-                    BottomCanvasContext.LineTo(pos2.x + xOffset, pos2.y + yOffset);
-                }
+                //int minWidth = -2, minHeight = -2;
+                //int maxWidth = (int)Math.Ceiling(hypo(width, height)), maxHeight = (int)Math.Ceiling(hypo(width, height));
+                //for (int _30l = minWidth - 2; _30l <= (maxWidth + 2); _30l++)
+                //{
+                //    var pos1 = grid.GetDrawPosition((_30l, minHeight - 3));
+                //    var pos2 = grid.GetDrawPosition((_30l, maxHeight + 3));
+                //    BottomCanvasContext.MoveTo(pos1.x + xOffset, pos1.y + yOffset);
+                //    BottomCanvasContext.LineTo(pos2.x + xOffset, pos2.y + yOffset);
+                //}
+                //for (int _30r = minHeight - 2; _30r <= (maxHeight + 2); _30r++)
+                //{
+                //    var pos1 = grid.GetDrawPosition((minWidth - 3, _30r));
+                //    var pos2 = grid.GetDrawPosition((maxWidth + 3, _30r));
+                //    BottomCanvasContext.MoveTo(pos1.x + xOffset, pos1.y + yOffset);
+                //    BottomCanvasContext.LineTo(pos2.x + xOffset, pos2.y + yOffset);
+                //}
+                //for (int y = minHeight - 2; y <= (maxHeight + 2); y++)
+                //{
+                //    var pos1 = grid.GetDrawPosition((-width / xMultiplier, y));
+                //    var pos2 = grid.GetDrawPosition((y, -width / xMultiplier));
+                //    BottomCanvasContext.MoveTo(pos1.x + xOffset, pos1.y + yOffset);
+                //    BottomCanvasContext.LineTo(pos2.x + xOffset, pos2.y + yOffset);
+                //}
             }
             else if (Grid is SquareGrid)
             {
@@ -393,7 +408,8 @@ namespace CustomizableGameofLife
         public static double NegDivDouble(double a, double b)
             => a >= 0 ? a / b : (a - b + 1) / b;
 
-        public const int maxAdjacentCells = 8;
+        public const int maxAdjacentCells = 12;
+        public static int currentMaxAdjacentCells => Grid is HexGrid ? 6 : Grid is SquareGrid ? 8 : Grid is TriangleGrid ? 12 : throw new NotImplementedException($"Grid type not found: {Grid.GetType()}");
 
         static List<HTMLSelectElement> adjacencyRulesCells = new List<HTMLSelectElement>();
         static List<(HTMLInputElement, HTMLInputElement)> optionCells = new List<(HTMLInputElement, HTMLInputElement)>();
@@ -552,7 +568,7 @@ namespace CustomizableGameofLife
                 )
             );
 
-            for (int n = 0; n <= maxAdjacentCells; n++)
+            for (int n = 0; n <= currentMaxAdjacentCells; n++)
             {
                 HTMLTableRowElement row = new HTMLTableRowElement().AddTo(rulesTable);
                 row.Add(new HTMLTableDataCellElement().Add(n.ToString()));
@@ -834,11 +850,15 @@ namespace CustomizableGameofLife
                 });
             }
             else if (Grid is TriangleGrid triangleGrid)
-			{
-                triangleGrid.DrawSquares(((int x, int y) drawPos, (int c0, int c1, TriangleLocation n) coords, SquareType squareType) =>
+            {
+                DOMCanvasContext.DrawImage(BottomCanvas, (offsetX % (HexGrid.cos60 * 2 * xMultiplier)) - HexGrid.cos60 * 2 * xMultiplier, (offsetY % (HexGrid.sin60 * 2 * yMultiplier)) - HexGrid.sin60 * 2 * yMultiplier);
+                triangleGrid.DrawSquares(((int x, int y) d, (int c0, int c1, TriangleLocation n) coords, SquareType squareType) =>
                 {
+                    (int drawX, int drawY)? drawPos = GetDOMDrawPos(d);
+                    if (!drawPos.HasValue)
+                        return;
                     DOMCanvasContext.FillStyle = $"rgba(0, 0, 0, {GetSquareTypeAlpha(squareType) / 255.0})";
-                    DOMCanvasContext.DrawTriangle(drawPos.x, drawPos.y, xMultiplier / 2, coords.n);
+                    DOMCanvasContext.DrawTriangle(drawPos.Value.drawX, drawPos.Value.drawY, xMultiplier / 2, coords.n);
                 });
             }
             DOMCanvasContext.ImageSmoothingEnabled = false;
@@ -951,7 +971,7 @@ namespace CustomizableGameofLife
                 context.Fill();
         }
 
-        public static void DrawTriangle(this CanvasRenderingContext2D context, int hexX, int hexY, int hexRadius, TriangleLocation loc)
+        public static void DrawTriangle(this CanvasRenderingContext2D context, int hexX, int hexY, int hexRadius, TriangleLocation loc, bool stroke = false)
         {
             context.BeginPath();
             context.MoveTo(hexX, hexY);
@@ -983,7 +1003,10 @@ namespace CustomizableGameofLife
             context.LineTo(hexX + hexRadius * Math.Cos(angle), hexY + hexRadius * Math.Sin(angle));
             angle += Math.PI / 3;
             context.LineTo(hexX + hexRadius * Math.Cos(angle), hexY + hexRadius * Math.Sin(angle));
-            context.Fill();
+            if (stroke)
+                context.Stroke();
+            else
+                context.Fill();
         }
     }
 }

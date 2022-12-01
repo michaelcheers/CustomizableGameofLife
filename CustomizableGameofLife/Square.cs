@@ -33,7 +33,7 @@ namespace CustomizableGameofLife
     {
         Square,
         Hex,
-        //Triangle,
+        Triangle,
         Count
     }
 
