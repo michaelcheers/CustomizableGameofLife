@@ -83,7 +83,7 @@ namespace CustomizableGameofLife
             }.Add("⚙"));
 
         public static SquareType SquareTypePlacing = SquareType.Count;
-        public static GridType CurrentGridType = GridType.Square;
+        public static GridType CurrentGridType = GridType.Triangle;
         public static HTMLButtonElement NextGridTypeButton, NextSquareTypeButton;
 
         public static void Zoom (bool zoomIn)
@@ -390,7 +390,7 @@ namespace CustomizableGameofLife
         public static HTMLCanvasElement DOMCanvas = CreateCanvas();
         public static CanvasRenderingContext2D DOMCanvasContext = DOMCanvas.GetContext(CanvasTypes.CanvasContext2DType.CanvasRenderingContext2D);
 
-        public static Grid Grid = new SquareGrid();
+        public static Grid Grid = new TriangleGrid();
         public static (int x, int y) offsetPos = (0, 0);
 
         public static (int x, int y) MousePos (this MouseEvent e)
