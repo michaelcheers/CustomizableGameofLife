@@ -75,7 +75,7 @@ namespace CustomizableGameofLife
 
             foreach (CoordType coords in adding)
             {
-                Squares.TryAdd(coords, SquareType.Cell);
+                Squares.Add(coords, SquareType.Cell);
             }
         }
 
@@ -378,8 +378,11 @@ namespace CustomizableGameofLife
                 if (loc == n)
                     continue;
                 var adjacencyRule = App.adjacencyRules[(int)loc];
-                if (Squares.ContainsAlive((_60l, _60r, loc)))
-                    adjacentCells += (int)adjacencyRule;
+                if (Squares.TryGetValue((_60l, _60r, loc), out SquareType squareType))
+                {
+                    if (squareType.IsAlive())
+                        adjacentCells += (int)adjacencyRule;
+                }
                 else
                     emptyAdjAction?.Invoke((_60l, _60r, loc));
             }
