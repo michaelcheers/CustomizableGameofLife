@@ -380,6 +380,8 @@ namespace CustomizableGameofLife
                 var adjacencyRule = App.adjacencyRules[(int)loc];
                 if (Squares.ContainsAlive((_60l, _60r, loc)))
                     adjacentCells += (int)adjacencyRule;
+                else
+                    emptyAdjAction?.Invoke((_60l, _60r, loc));
             }
 
             // Check triangles from adjacent hexagons for adjacency
