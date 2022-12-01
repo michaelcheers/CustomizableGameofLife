@@ -29,6 +29,14 @@ namespace CustomizableGameofLife
         Count
     }
 
+    public enum GridType
+    {
+        Square,
+        Hex,
+        //Triangle,
+        Count
+    }
+
     [Flags]
     public enum DividersInfo
     {

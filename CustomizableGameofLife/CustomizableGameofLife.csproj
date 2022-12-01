@@ -50,6 +50,8 @@
     <Compile Include="Class1.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="ExtraElements.cs" />
+    <Compile Include="Grid.cs" />
+    <Compile Include="HexagonLoc.cs" />
     <Compile Include="NotableObjectsList.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Square.cs" />

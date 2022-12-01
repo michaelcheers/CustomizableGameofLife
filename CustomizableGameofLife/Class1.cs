@@ -16,6 +16,8 @@ namespace CustomizableGameofLife
     {
         public static int xMultiplier = 20;
         public static int yMultiplier => xMultiplier;
+        public static double actualXMultiplier => Grid is HexGrid ? xMultiplier * 2 * HexGrid.cos60 : xMultiplier;
+        public static double actualYMultiplier => Grid is HexGrid ? yMultiplier * 2 * HexGrid.sin60 : yMultiplier;
         public static int screenWidth = Window.InnerWidth, screenHeight = Window.InnerHeight;
         public static int width => (int)Math.Ceiling((double)screenWidth / xMultiplier);
         public static int height => (int)Math.Ceiling((double)screenHeight / yMultiplier);
@@ -39,14 +41,15 @@ namespace CustomizableGameofLife
                 ClassName = "btn btn-primary", OnClick = e => Reset()
             }.Add("Reset"))
 
+            //.Add(new HTMLButtonElement
+            //{
+            //    ClassName = "btn btn-primary", OnClick = e => GetCoordinates()
+            //}.Add("Get Coordinates"))
+
             .Add(new HTMLButtonElement
             {
-                ClassName = "btn btn-primary", OnClick = e => GetCoordinates()
-            }.Add("Get Coordinates"))
-            
-            .Add(new HTMLButtonElement
-            {
-                ClassName = "btn btn-primary", OnClick = e => SaveAsStarter()
+                ClassName = "btn btn-primary",
+                OnClick = e => SaveAsStarter()
             }.Add("Save as Starter"))
 
             .Add(new HTMLButtonElement
@@ -58,6 +61,11 @@ namespace CustomizableGameofLife
             {
                 ClassName = "btn btn-primary", OnClick = e => Zoom(zoomIn: true)
             }.Add("Zoom In"))
+
+            .Add(NextGridTypeButton = new HTMLButtonElement
+            {
+                ClassName = "btn btn-primary", OnClick = e => NextGridType()
+            }.Add(GridType.Square.ToCamelString()))
 
             .Add(NextSquareTypeButton = new HTMLButtonElement
             {
@@ -75,7 +83,8 @@ namespace CustomizableGameofLife
             }.Add("⚙"));
 
         public static SquareType SquareTypePlacing = SquareType.Count;
-        public static HTMLButtonElement NextSquareTypeButton;
+        public static GridType CurrentGridType = GridType.Square;
+        public static HTMLButtonElement NextGridTypeButton, NextSquareTypeButton;
 
         public static void Zoom (bool zoomIn)
         {
@@ -89,6 +98,25 @@ namespace CustomizableGameofLife
         {
             SquareTypePlacing = (SquareType)(((int)SquareTypePlacing + 1) % (int)(SquareType.Count + 1));
             NextSquareTypeButton.InnerHTML = SquareTypePlacing == SquareType.Count ? "Wall" : SquareTypePlacing.ToCamelString();
+        }
+
+        public static void NextGridType()
+        {
+            CurrentGridType = (GridType)(((int)CurrentGridType + 1) % (int)GridType.Count);
+            NextGridTypeButton.InnerHTML = CurrentGridType.ToCamelString();
+            switch (CurrentGridType)
+            {
+                case GridType.Square:
+                    Grid = new SquareGrid();
+                    break;
+                case GridType.Hex:
+                    Grid = new HexGrid();
+                    break;
+                //case GridType.Triangle:
+                //    Grid = new TriangleGrid();
+                //    break;
+            }
+            Draw();
         }
 
         public static HTMLDivElement RightHotbar = new HTMLDivElement
@@ -108,9 +136,8 @@ namespace CustomizableGameofLife
         public static void Reset (bool makeBlank = false)
         {
             if (!Global.Confirm("Any unsaved changes will be lost. Continue?")) return;
-            Squares.Clear();
-            Dividers.Clear();
-            if (!makeBlank)
+            Grid.Clear();
+            if (!makeBlank && Grid is Grid<(int x, int y)> grid)
             {
                 offsetPos = (0, 0);
                 object starterPositions = Global.LocalStorage.GetItem("starterPositions");
@@ -123,11 +150,11 @@ namespace CustomizableGameofLife
                         if (jsonRaw.length == 0 || jsonRaw[0].Item3 == null)
                         {
                             foreach (var pos in (JsonConvert.DeserializeObject<(int x, int y)[]>(s)))
-                                Squares.Add(pos, SquareType.Cell);
+                                grid.Squares.Add(pos, SquareType.Cell);
                         }
                         else
                             foreach (var squareInfo in (JsonConvert.DeserializeObject<(int x, int y, SquareType squareType)[]>(s)))
-                                Squares.Add((squareInfo.x, squareInfo.y), squareInfo.squareType);
+                                grid.Squares.Add((squareInfo.x, squareInfo.y), squareInfo.squareType);
                     }
                 }
             }
@@ -138,63 +165,68 @@ namespace CustomizableGameofLife
 
         public static List<(int x, int y, SquareType squareType)> GetCoordinatesInteral()
         {
-            (int x, int y) offsetCoords = (NegDiv(offsetPos.x, xMultiplier), NegDiv(offsetPos.y, yMultiplier));
-            return Squares.ToList().ConvertAll(s => (x: s.Key.x + offsetCoords.x, y: s.Key.y + offsetCoords.y, squareType: s.Value));
+            if (Grid is Grid<(int x, int y)> g)
+            {
+                (int x, int y) offsetCoords = (NegDiv(offsetPos.x, (int)actualXMultiplier), NegDiv(offsetPos.y, (int)actualYMultiplier));
+                return g.Squares.ToList().ConvertAll(s => (x: s.Key.x + offsetCoords.x, y: s.Key.y + offsetCoords.y, squareType: s.Value));
+            }
+            else
+                return new List<(int x, int y, SquareType squareType)>();
         }
 
-        public static List<(int x, int y, SquareType squareType)> GetNormalizedCoordinates ()
-        {
-            List<(int x, int y, SquareType squareType)> coords = GetCoordinatesInteral();
-            coords = coords.Where(c => c.x >= 0 && c.y >= 0 && c.x < width && c.y < height).ToList();
-            int minX = coords.Min(c => c.x), minY = coords.Min(c => c.y);
-            coords = coords.Select(c => (c.x - minX, c.y - minY, c.squareType)).ToList();
-            return coords;
-        }
+        //public static List<(int x, int y, SquareType squareType)> GetNormalizedCoordinates ()
+        //{
+        //    List<(int x, int y, SquareType squareType)> coords = GetCoordinatesInteral();
+        //    coords = coords.Where(c => c.x >= 0 && c.y >= 0 && c.x < width && c.y < height).ToList();
+        //    int minX = coords.Min(c => c.x), minY = coords.Min(c => c.y);
+        //    coords = coords.Select(c => (c.x - minX, c.y - minY, c.squareType)).ToList();
+        //    return coords;
+        //}
 
-        public static void GetCoordinates ()
-        {
-            string codeGenerated = $@"(new HashSet<(int x, int y)>
-{{
-    {string.Join(",\n    ", GetNormalizedCoordinates().Select(t => $"({t.x}, {t.y})"))}
-}}, ""Untitled Object"", {JSON.Stringify($"{(adjacencyRules.All(a => a == AdjacencyType.One) ? "" : (string.Concat(adjacencyRules.Select(k => (int)k))) + " -> ")}{string.Concat(deadRules.Select(k => k ? 1 : 0))} / {string.Concat(livingRules.Select(k => k ? 1 : 0))}")})";
-            HTMLDivElement modal, modalContent = 
-                new HTMLDivElement { ClassName = "modal-content" }
-                    .AddTo(new HTMLDivElement { ClassName = "modal-dialog" }
-                        .AddTo(modal = new HTMLDivElement { ClassName = "modal", Style = { Display = "inherit" } }
-                            .AddTo(Document.Body)
-                        )
-                    );
-            modalContent.Add(
+        //        public static void GetCoordinates ()
+        //        {
+        //            string codeGenerated = $@"(new HashSet<(int x, int y)>
+        //{{
+        //    {string.Join(",\n    ", GetNormalizedCoordinates().Select(t => $"({t.x}, {t.y})"))}
+        //}}, ""Untitled Object"", {JSON.Stringify($"{(adjacencyRules.All(a => a == AdjacencyType.One) ? "" : (string.Concat(adjacencyRules.Select(k => (int)k))) + " -> ")}{string.Concat(deadRules.Select(k => k ? 1 : 0))} / {string.Concat(livingRules.Select(k => k ? 1 : 0))}")})";
+        //            HTMLDivElement modal, modalContent = 
+        //                new HTMLDivElement { ClassName = "modal-content" }
+        //                    .AddTo(new HTMLDivElement { ClassName = "modal-dialog" }
+        //                        .AddTo(modal = new HTMLDivElement { ClassName = "modal", Style = { Display = "inherit" } }
+        //                            .AddTo(Document.Body)
+        //                        )
+        //                    );
+        //            modalContent.Add(
 
-                new HTMLDivElement
-                {
-                    ClassName = "modal-header"
-                }
+        //                new HTMLDivElement
+        //                {
+        //                    ClassName = "modal-header"
+        //                }
 
-                    .Add(new HTMLButtonElement
-                    {
-                        ClassName = "btn-close",
-                        OnClick = e => modal.Remove()
-                    }
-                        .Add(new HTMLSpanElement
-                        {
-                            InnerHTML = "&times;"
-                        })
-
-
-                ),
+        //                    .Add(new HTMLButtonElement
+        //                    {
+        //                        ClassName = "btn-close",
+        //                        OnClick = e => modal.Remove()
+        //                    }
+        //                        .Add(new HTMLSpanElement
+        //                        {
+        //                            InnerHTML = "&times;"
+        //                        })
 
 
-                new HTMLPreElement
-                {
-                    ClassName = "modal-body",
-                    Style =
-                    {
-                        ["user-select"] = "text"
-                    }
-                }.Add(codeGenerated)
-            );
-        }
+        //                ),
+
+
+        //                new HTMLPreElement
+        //                {
+        //                    ClassName = "modal-body",
+        //                    Style =
+        //                    {
+        //                        ["user-select"] = "text"
+        //                    }
+        //                }.Add(codeGenerated)
+        //            );
+        //        }
 
         public static void SaveAsStarter ()
         {
@@ -259,22 +291,81 @@ namespace CustomizableGameofLife
             => new HTMLCanvasElement { Width = screenWidth, Height = screenHeight };
         public static HTMLCanvasElement CreateTopCanvas()
             => new HTMLCanvasElement { Width = width + 2, Height = height + 2 };
+        public static double hypo(double x, double y)
+        {
+            return Math.Sqrt(Math.Pow(x, 2) + Math.Pow(y, 2));
+        }
         public static HTMLCanvasElement CreateBottomCanvas()
         {
-            HTMLCanvasElement BottomCanvas = new HTMLCanvasElement { Width = screenWidth + 2 * xMultiplier, Height = screenHeight + 2 * yMultiplier };
+            HTMLCanvasElement BottomCanvas = Grid is HexGrid ?
+                new HTMLCanvasElement
+                {
+                    Width = DOMCanvas.Width + 4 * xMultiplier,
+                    Height = DOMCanvas.Height + 4 * yMultiplier
+                } :
+                new HTMLCanvasElement
+                {
+                    Width = screenWidth + 2 * xMultiplier,
+                    Height = screenHeight + 2 * yMultiplier
+                };
             var BottomCanvasContext = BottomCanvas.GetContext(CanvasTypes.CanvasContext2DType.CanvasRenderingContext2D);
             BottomCanvasContext.StrokeStyle = "black";
             BottomCanvasContext.Translate(0.5, 0.5);
             BottomCanvasContext.LineWidth = 1;
-            for (int x = 0; x <= (width + 2); x++)
+            if (Grid is HexGrid h)
             {
-                BottomCanvasContext.MoveTo(x * xMultiplier, 0);
-                BottomCanvasContext.LineTo(x * xMultiplier, (height + 3) * yMultiplier);
+                BottomCanvasContext.StrokeStyle = "black";
+                for (int a = -(int)hypo(width, height); a < (int)hypo(width, height); a++)
+                {
+                    for (int b = -(int)hypo(width, height); b < (int)hypo(width, height); b++)
+                    {
+                        (int x, int y) = h.GetDrawPosition((a, b));
+                        BottomCanvasContext.DrawHexagon(x, y, xMultiplier * 2 / 3, stroke: true);
+                    }
+                }
             }
-            for (int y = 0; y <= (height + 2); y++)
+            else if (Grid is TriangleGrid/* || Grid is HexGrid*/)
             {
-                BottomCanvasContext.MoveTo(0, y * yMultiplier);
-                BottomCanvasContext.LineTo((width + 3) * xMultiplier, y * yMultiplier);
+                HexGrid grid = new HexGrid();
+                double xOffset = width / 2 * App.xMultiplier + offsetPos.x
+                     , yOffset = height * App.xMultiplier + offsetPos.y;
+
+                int minWidth = -2, minHeight = -2;
+                int maxWidth = (int)Math.Ceiling(hypo(width, height)), maxHeight = (int)Math.Ceiling(hypo(width, height));
+                for (int _30l = minWidth - 2; _30l <= (maxWidth + 2); _30l++)
+                {
+                    var pos1 = grid.GetDrawPosition((_30l, minHeight - 3));
+                    var pos2 = grid.GetDrawPosition((_30l, maxHeight + 3));
+                    BottomCanvasContext.MoveTo(pos1.x + xOffset, pos1.y + yOffset);
+                    BottomCanvasContext.LineTo(pos2.x + xOffset, pos2.y + yOffset);
+                }
+                for (int _30r = minHeight - 2; _30r <= (maxHeight + 2); _30r++)
+                {
+                    var pos1 = grid.GetDrawPosition((minWidth - 3, _30r));
+                    var pos2 = grid.GetDrawPosition((maxWidth + 3, _30r));
+                    BottomCanvasContext.MoveTo(pos1.x + xOffset, pos1.y + yOffset);
+                    BottomCanvasContext.LineTo(pos2.x + xOffset, pos2.y + yOffset);
+                }
+                for (int y = minHeight - 2; y <= (maxHeight + 2); y++)
+                {
+                    var pos1 = grid.GetDrawPosition((-width / xMultiplier, y));
+                    var pos2 = grid.GetDrawPosition((y, -width / xMultiplier));
+                    BottomCanvasContext.MoveTo(pos1.x + xOffset, pos1.y + yOffset);
+                    BottomCanvasContext.LineTo(pos2.x + xOffset, pos2.y + yOffset);
+                }
+            }
+            else if (Grid is SquareGrid)
+            {
+                for (int x = 0; x <= (width + 2); x++)
+                {
+                    BottomCanvasContext.MoveTo(x * xMultiplier, 0);
+                    BottomCanvasContext.LineTo(x * xMultiplier, (height + 3) * yMultiplier);
+                }
+                for (int y = 0; y <= (height + 2); y++)
+                {
+                    BottomCanvasContext.MoveTo(0, y * yMultiplier);
+                    BottomCanvasContext.LineTo((width + 3) * xMultiplier, y * yMultiplier);
+                }
             }
             for (int n = 0; n < 10; n++)
                 BottomCanvasContext.Stroke();
@@ -284,8 +375,7 @@ namespace CustomizableGameofLife
         public static HTMLCanvasElement DOMCanvas = CreateCanvas();
         public static CanvasRenderingContext2D DOMCanvasContext = DOMCanvas.GetContext(CanvasTypes.CanvasContext2DType.CanvasRenderingContext2D);
 
-        public static Dictionary<(int x, int y), SquareType> Squares = new Dictionary<(int x, int y), SquareType>();
-        public static Dictionary<(int x, int y), DividersInfo> Dividers = new Dictionary<(int x, int y), DividersInfo>();
+        public static Grid Grid = new SquareGrid();
         public static (int x, int y) offsetPos = (0, 0);
 
         public static (int x, int y) MousePos (this MouseEvent e)
@@ -605,100 +695,7 @@ namespace CustomizableGameofLife
             {
                 //if ((@event.Buttons & 1) == 0) return;
                 var mousePos = e.MousePos();
-                (double clickX_, double clickY_) = (NegDivDouble((double)mousePos.x - offsetPos.x, xMultiplier), NegDivDouble((double)mousePos.y - offsetPos.y, yMultiplier));
-                bool placeNormally = true;
-                if (SquareTypePlacing == SquareType.Count)
-                {
-                    // Place dividers
-                    placeNormally = false;
-                    int xDiv = 0, yDiv = 0;
-                    if ((clickX_) % 1 <= 0.2)
-                        xDiv = -1;
-                    else if ((clickX_) % 1 >= 0.8)
-                        xDiv = 1;
-                    if ((clickY_) % 1 <= 0.2)
-                        yDiv = -1;
-                    else if ((clickY_) % 1 >= 0.8)
-                        yDiv = 1;
-                    DividersInfo dividersInfo = DividersInfo.None;
-                    Action<DividersInfo> Assign = (DividersInfo divInfo) =>
-                    {
-                        int x = (int)clickX_ + xDiv, y = (int)clickY_ + yDiv;
-                        if (divInfo != DividersInfo.None)
-                        {
-                            if (!Dividers.TryGetValue(((int)x, (int)y), out DividersInfo dividers))
-                                dividers = DividersInfo.None;
-                            Dividers[(x, y)] = dividers ^ divInfo;
-                        }
-                    };
-                    switch (xDiv)
-                    {
-                        case -1:
-                            switch (yDiv)
-                            {
-                                case -1:
-                                    Assign(DividersInfo.BottomRight);
-                                    break;
-                                case 0:
-                                    Assign(DividersInfo.Right);
-                                    break;
-                                case 1:
-                                    yDiv = 0;
-                                    Assign(DividersInfo.BottomRight);
-                                    break;
-                                default:
-                                    throw new InvalidOperationException();
-                            }
-                            break;
-                        case 0:
-                            switch (yDiv)
-                            {
-                                case -1:
-                                    Assign(DividersInfo.Bottom);
-                                    break;
-                                case 0:
-                                    placeNormally = true;
-                                    break;
-                                case 1:
-                                    dividersInfo = DividersInfo.Bottom;
-                                    break;
-                                default:
-                                    throw new InvalidOperationException();
-                            }
-                            break;
-                        case 1:
-                            switch (yDiv)
-                            {
-                                case -1:
-                                    xDiv = 0;
-                                    Assign(DividersInfo.BottomRight);
-                                    break;
-                                case 0:
-                                    dividersInfo = DividersInfo.Right;
-                                    break;
-                                case 1:
-                                    dividersInfo = DividersInfo.BottomRight;
-                                    break;
-                                default:
-                                    throw new InvalidOperationException();
-                            }
-                            break;
-                        default:
-                            throw new InvalidOperationException();
-                    }
-                    if (dividersInfo != DividersInfo.None)
-                    {
-                        xDiv = 0;
-                        yDiv = 0;
-                        Assign(dividersInfo);
-                    }
-                }
-                if (placeNormally)
-                {
-                    (int clickX, int clickY) = ((int)clickX_, (int)clickY_);
-                    if (!Squares.Remove((clickX, clickY)))
-                        Squares.Add((clickX, clickY), SquareTypePlacing == SquareType.Count ? SquareType.Cell : SquareTypePlacing);
-                }
+                Grid.HandleClick((mousePos.x - offsetPos.x, mousePos.y - offsetPos.y), SquareTypePlacing);
                 Draw();
             }
 
@@ -741,29 +738,7 @@ namespace CustomizableGameofLife
 
         public static bool updating = false;
 
-        public static int NumberOfAdjacentCells (int x, int y)
-        {
-            int adjacentCells = 0;
-            int n = 0;
-            for (int L = 0; L <= 8; L++)
-            {
-                if (L == 4)
-                    continue;
-                var adjacencyRule = adjacencyRules[n++];
-
-                int x_ = x - 1 + (L % 3),
-                    y_ = y - 1 + L / 3;
-
-                if (HasDividers(x, y, L))
-                    continue;
-
-                if (Squares.ContainsAlive((x_, y_)))
-                    adjacentCells += (int)adjacencyRule;
-            }
-            return adjacentCells > maxAdjacentCells ? maxAdjacentCells : adjacentCells;
-        }
-
-        public static bool HasDividers (int x, int y, int L)
+        public static bool HasDividers (this Dictionary<(int x, int y), DividersInfo> dividers, int x, int y, int L)
         {
             DividersInfo toCheck;
             switch (L)
@@ -801,114 +776,87 @@ namespace CustomizableGameofLife
                 default:
                     throw new InvalidOperationException();
             }
-            return Dividers.TryGetValue((x, y), out DividersInfo dividersInfo) && (dividersInfo & toCheck) != 0;
+            return dividers.TryGetValue((x, y), out DividersInfo dividersInfo) && (dividersInfo & toCheck) != 0;
         }
 
-        public static void Update()
-        {
-            //updating = true;
+        public static (int xMultiplier, GridType gridType, HTMLCanvasElement canvas) LastBottomCanvas = (0, GridType.Count, null);
 
-            List<(int, int)> removing = new List<(int, int)>();
-            HashSet<(int, int)> adding = new HashSet<(int, int)>();
+        public static byte GetSquareTypeAlpha (SquareType squareType)
+            => (byte)(
+                    squareType == SquareType.Cell ? 255 :
+                    squareType == SquareType.Brick ? 170 :
+                    squareType == SquareType.ImmortalCell ? 85 :
+                    throw new Exception("Unknown square type")
+                );
 
-            foreach ((var pos, SquareType squareType) in Squares)
-            {
-                (int x, int y) = pos;
-                if (!squareType.IsAlive())
-                    continue;
-                int adjacentCells = 0;
-                int n = 0;
-                for (int L = 0; L <= 8; L++)
-                {
-                    if (L == 4)
-                        continue;
-                    var adjacencyRule = adjacencyRules[n++];
 
-                    int x_ = x - 1 + (L % 3),
-                        y_ = y - 1 + L / 3;
-
-                    if (HasDividers(x, y, L))
-                        continue;
-
-                    if (Squares.TryGetValue((x_, y_), out SquareType squareInfo))
-                    {
-                        if (squareInfo.IsAlive())
-                            adjacentCells += (int)adjacencyRule;
-                    }
-                    else
-                    {
-                        // Create new cells.
-
-                        // Optimization for rule of 3 adjacent cells
-                        //if (L != 7 && L != 8)
-                        //{
-                        //}
-
-                        if (deadRules[NumberOfAdjacentCells(x_, y_)])
-                            adding.Add((x_, y_));
-                    }
-                }
-                if (adjacentCells > maxAdjacentCells)
-                    adjacentCells = maxAdjacentCells;
-
-                if (!squareType.IsUndead() && !livingRules[adjacentCells])
-                    removing.Add((x, y));
-            }
-
-            foreach ((int x, int y) in removing)
-            {
-                if (!Squares.Remove((x, y))) throw new Exception("Square tried to be removed but didn't exist");
-            }
-
-            foreach ((int x, int y) in adding)
-            {
-                Squares.Add((x, y), SquareType.Cell);
-            }
-        }
-
-        public static (int xMultiplier, HTMLCanvasElement canvas) LastBottomCanvas = (0, null);
 
         public static void Draw()
         {
             HTMLCanvasElement TopCanvas = CreateTopCanvas();
             HTMLCanvasElement BottomCanvas = null;
-            if (LastBottomCanvas.xMultiplier == xMultiplier)
+            if (LastBottomCanvas.xMultiplier == xMultiplier && LastBottomCanvas.gridType == CurrentGridType)
                 BottomCanvas = LastBottomCanvas.canvas;
             if (BottomCanvas == null)
             {
                 BottomCanvas = CreateBottomCanvas();
-                LastBottomCanvas = (xMultiplier, BottomCanvas);
+                LastBottomCanvas = (xMultiplier, CurrentGridType, BottomCanvas);
             }
             CanvasRenderingContext2D TopCanvasContext = TopCanvas.GetContext(CanvasTypes.CanvasContext2DType.CanvasRenderingContext2D);
             DOMCanvasContext.ClearRect(0, 0, DOMCanvas.Width, DOMCanvas.Height);
             (int offsetX, int offsetY) = offsetPos;
-            Uint8ClampedArray imageDataArray = CreateImageDataArray(width + 2, height + 2);
-            (int drawX, int drawY)? GetDrawPos ((int x, int y) pos)
+            if (Grid is SquareGrid squareGrid)
+			{
+				Uint8ClampedArray imageDataArray = CreateImageDataArray(width + 2, height + 2);
+				foreach ((var pos, SquareType squareType) in squareGrid.Squares)
+				{
+					var drawPos = GetDrawPos(pos);
+					if (drawPos == null)
+						continue;
+					(int drawX, int drawY) = drawPos.Value;
+					int idx = drawX + drawY * (width + 2);
+					imageDataArray[idx * 4 + 3] = GetSquareTypeAlpha(squareType);
+				}
+				ImageData imageData = new ImageData(imageDataArray, (uint)(width + 2), (uint)(height + 2));
+				TopCanvasContext.PutImageData(imageData, 0, 0);
+                DOMCanvasContext.DrawImage(BottomCanvas, (offsetX % xMultiplier) - xMultiplier, (offsetY % yMultiplier) - yMultiplier);
+            }
+			else if (Grid is HexGrid h)
+            {
+                DOMCanvasContext.DrawImage(BottomCanvas, (offsetX % (HexGrid.cos60 * 2 * xMultiplier)) - HexGrid.cos60 * 2 * xMultiplier, (offsetY % (HexGrid.sin60 * 2 * yMultiplier)) - HexGrid.sin60 * 2 * yMultiplier);
+                Grid.DrawSquares(((int x, int y) d, SquareType squareType) =>
+                {
+                    (int drawX, int drawY)? drawPos = GetDOMDrawPos(d);
+                    if (!drawPos.HasValue)
+                        return;
+                    DOMCanvasContext.FillStyle = $"rgba(0, 0, 0, {GetSquareTypeAlpha(squareType) / 255.0})";
+                    DOMCanvasContext.DrawHexagon((int)drawPos.Value.drawX, (int)drawPos.Value.drawY, xMultiplier * 2 / 3);
+                });
+            }
+            else if (Grid is TriangleGrid triangleGrid)
+			{
+                triangleGrid.DrawSquares(((int x, int y) drawPos, (int c0, int c1, TriangleLocation n) coords, SquareType squareType) =>
+                {
+                    DOMCanvasContext.FillStyle = $"rgba(0, 0, 0, {GetSquareTypeAlpha(squareType) / 255.0})";
+                    DOMCanvasContext.DrawTriangle(drawPos.x, drawPos.y, xMultiplier / 2, coords.n);
+                });
+            }
+            DOMCanvasContext.ImageSmoothingEnabled = false;
+            DOMCanvasContext.DrawImage(TopCanvas, (offsetX % xMultiplier) - xMultiplier, (offsetY % yMultiplier) - yMultiplier, (width + 2) * xMultiplier, (height + 2) * yMultiplier);
+            (int drawX, int drawY)? GetDrawPos((int x, int y) pos)
             {
                 (int x, int y) = pos;
                 int drawX = x + (offsetX / xMultiplier) + 1, drawY = y + (offsetY / yMultiplier) + 1;
                 if (drawX < 0 || drawX >= width + 2 || drawY < 0 || drawY >= height + 2) return null;
                 return (drawX, drawY);
             }
-            foreach ((var pos, SquareType squareType) in Squares)
+            (int drawX, int drawY)? GetDOMDrawPos ((int x, int y) pos)
             {
-                var drawPos = GetDrawPos(pos);
-                if (drawPos == null)
-                    continue;
-                (int drawX, int drawY) = drawPos.Value;
-                int idx = drawX + drawY * (width + 2);
-                imageDataArray[idx * 4 + 3] = (byte)(
-                    squareType == SquareType.Cell ? 255 :
-                    squareType == SquareType.Brick ? 170 :
-                    squareType == SquareType.ImmortalCell ? 85 :
-                    throw new Exception("Unknown square type")
-                );
+                (int x, int y) = pos;
+                int drawX = x + offsetX, drawY = y + offsetY;
+                if (drawX < 0 || drawX >= screenWidth || drawY < 0 || drawY >= screenHeight) return null;
+                return (drawX, drawY);
             }
-            ImageData imageData = new ImageData(imageDataArray, (uint)(width + 2), (uint)(height + 2));
-            TopCanvasContext.PutImageData(imageData, 0, 0);
-            DOMCanvasContext.DrawImage(BottomCanvas, offsetX % xMultiplier - xMultiplier, offsetY % yMultiplier - yMultiplier);
-            DOMCanvasContext.ImageSmoothingEnabled = false;
-            DOMCanvasContext.DrawImage(TopCanvas, (offsetX % xMultiplier) - xMultiplier, (offsetY % yMultiplier) - yMultiplier, (width + 2) * xMultiplier, (height + 2) * yMultiplier);
             (double drawX, double drawY)? GetFinalDrawPos ((int x, int y) pos)
             {
                 var p = GetDrawPos(pos);
@@ -946,30 +894,30 @@ namespace CustomizableGameofLife
                 DOMCanvasContext.FillStyle = "red"; //"rgb(170, 170, 170)";
                 DOMCanvasContext.Fill();
             }
-            foreach (((int x, int y) pos, DividersInfo dividers) in Dividers)
-            {
-                foreach (var divider in new[] { DividersInfo.BottomRight, DividersInfo.Right, DividersInfo.Bottom })
-                {
-                    if (!dividers.HasFlag(divider))
-                        continue;
-                    switch (divider)
-                    {
-                        case DividersInfo.Right:
-                            (int x, int y) startPos = ((int)(pos.x + 1), (int)pos.y);
-                            (int x, int y) endPos = ((int)(pos.x + 1), (int)(pos.y + 1));
-                            DrawLine(GetFinalDrawPos(startPos), GetFinalDrawPos(endPos));
-                            break;
-                        case DividersInfo.Bottom:
-                            DrawLine(GetFinalDrawPos(((int)(pos.x), (int)(pos.y + 1))), GetFinalDrawPos(((int)(pos.x + 1), (int)(pos.y + 1))));
-                            break;
-                        case DividersInfo.BottomRight:
-                            DrawMarker(GetFinalDrawPos(((int)(pos.x + 1), (int)(pos.y + 1))));
-                            break;
-                        default:
-                            throw new InvalidOperationException();
-                    }
-                }
-            }
+            //foreach (((int x, int y) pos, DividersInfo dividers) in Dividers)
+            //{
+            //    foreach (var divider in new[] { DividersInfo.BottomRight, DividersInfo.Right, DividersInfo.Bottom })
+            //    {
+            //        if (!dividers.HasFlag(divider))
+            //            continue;
+            //        switch (divider)
+            //        {
+            //            case DividersInfo.Right:
+            //                (int x, int y) startPos = ((int)(pos.x + 1), (int)pos.y);
+            //                (int x, int y) endPos = ((int)(pos.x + 1), (int)(pos.y + 1));
+            //                DrawLine(GetFinalDrawPos(startPos), GetFinalDrawPos(endPos));
+            //                break;
+            //            case DividersInfo.Bottom:
+            //                DrawLine(GetFinalDrawPos(((int)(pos.x), (int)(pos.y + 1))), GetFinalDrawPos(((int)(pos.x + 1), (int)(pos.y + 1))));
+            //                break;
+            //            case DividersInfo.BottomRight:
+            //                DrawMarker(GetFinalDrawPos(((int)(pos.x + 1), (int)(pos.y + 1))));
+            //                break;
+            //            default:
+            //                throw new InvalidOperationException();
+            //        }
+            //    }
+            //}
         }
 
         public static int frameNum = 0;
@@ -978,14 +926,64 @@ namespace CustomizableGameofLife
         {
             if (!playing) return;
 
-            bool skipFrames = Squares.Count >= 250;
+            bool skipFrames = Grid.SquareCount >= 250;
             int updatesPerDraw = 1;// skipFrames ? 2 : 1;
             frameNum++;
             if (skipFrames && (frameNum % updatesPerDraw) != 0) return;
 
             for (int n = 0; n < updatesPerDraw; n++)
-                Update();
+                Grid.Update();
             Draw();
+        }
+
+        public static void DrawHexagon (this CanvasRenderingContext2D context, int x, int y, int radius, bool stroke = false)
+        {
+            context.BeginPath();
+            context.MoveTo(x + radius, y);
+            for (int n = 1; n <= 6; n++)
+            {
+                double angle = n * Math.PI / 3;
+                context.LineTo(x + radius * Math.Cos(angle), y + radius * Math.Sin(angle));
+            }
+            if (stroke)
+                context.Stroke();
+            else
+                context.Fill();
+        }
+
+        public static void DrawTriangle(this CanvasRenderingContext2D context, int hexX, int hexY, int hexRadius, TriangleLocation loc)
+        {
+            context.BeginPath();
+            context.MoveTo(hexX, hexY);
+            int angleInt = 0;
+            switch (loc)
+            {
+                case TriangleLocation.TopLeft:
+                    angleInt = 0;
+                    break;
+                case TriangleLocation.Top:
+                    angleInt = 60;
+                    break;
+                case TriangleLocation.TopRight:
+                    angleInt = 120;
+                    break;
+                case TriangleLocation.BottomRight:
+                    angleInt = 180;
+                    break;
+                case TriangleLocation.Bottom:
+                    angleInt = 240;
+                    break;
+                case TriangleLocation.BottomLeft:
+                    angleInt = 300;
+                    break;
+                default:
+                    throw new InvalidOperationException();
+            }
+            double angle = angleInt * Math.PI / 180;
+            context.LineTo(hexX + hexRadius * Math.Cos(angle), hexY + hexRadius * Math.Sin(angle));
+            angle += Math.PI / 3;
+            context.LineTo(hexX + hexRadius * Math.Cos(angle), hexY + hexRadius * Math.Sin(angle));
+            context.Fill();
         }
     }
 }
