@@ -14,7 +14,7 @@ namespace CustomizableGameofLife
 {
     public static class App
     {
-        public static int xMultiplier = 20;
+        public static int xMultiplier = 10;
         public static int yMultiplier => xMultiplier;
         public static double actualXMultiplier => Grid is HexGrid ? xMultiplier * 2 * HexGrid.cos60 : xMultiplier;
         public static double actualYMultiplier => Grid is HexGrid ? yMultiplier * 2 * HexGrid.sin60 : yMultiplier;
