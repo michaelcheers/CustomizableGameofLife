@@ -120,6 +120,7 @@ namespace CustomizableGameofLife
                     Grid = new TriangleGrid();
                     break;
             }
+            SetupSettingsDiv();
             Draw();
         }
 
@@ -518,41 +519,8 @@ namespace CustomizableGameofLife
 
         public static HTMLDivElement adjacencyRulesTableDiv = new HTMLDivElement(), rulesTableDiv = new HTMLDivElement();
 
-        public static void Main ()
+        public static void SetupSettingsDiv ()
         {
-            object rulesObjectStr = Global.LocalStorage.GetItem("rules");
-            if (rulesObjectStr is string r)
-            {
-                try
-                {
-                    dynamic rulesObj = JSON.Parse(r);
-                    if (rulesObjectStr != null)
-                    {
-                        if (Script.Write("{0} instanceof Array", rulesObj.livingRules))
-                        {
-                            bool[] deserialized = JsonConvert.DeserializeObject<bool[]>(JSON.Stringify(rulesObj.livingRules));
-                            Array.Copy(deserialized, livingRules, deserialized.Length);
-                        }
-                        if (Script.Write("{0} instanceof Array", rulesObj.deadRules))
-                        {
-                            bool[] deserialized = JsonConvert.DeserializeObject<bool[]>(JSON.Stringify(rulesObj.deadRules));
-                            Array.Copy(deserialized, deadRules, deserialized.Length);
-                        }
-                        if (Script.Write("{0} instanceof Array", rulesObj.adjacencyRules))
-                        {
-                            AdjacencyType[] deserialized = JsonConvert.DeserializeObject<AdjacencyType[]>(JSON.Stringify(rulesObj.adjacencyRules));
-                            Array.Copy(deserialized, adjacencyRules, deserialized.Length);
-                        }
-                    }
-                }
-                catch { }
-            }
-            Document.Body.Style["user-select"] = "none";
-            Document.Head.AppendChild(new HTMLLinkElement { Rel = "stylesheet", Href = "https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" });
-            Document.Body.Style.Margin = "0px";
-            Document.Body.AppendChild(PopupContainer);
-            Document.Body.AppendChild(new HTMLStyleElement { InnerHTML = "td, th { border: 1px solid black; padding: 5px } button { margin-right: 5px }" });
-
             HTMLTableElement adjacencyRulesTable = new HTMLTableElement { Style = { MarginLeft = "auto", MarginRight = "auto" } };
             {
                 if (Grid is TriangleGrid)
@@ -596,6 +564,8 @@ namespace CustomizableGameofLife
             rulesTableDiv.Clear();
             rulesTableDiv.Add(rulesTable);
 
+            optionCells.Clear();
+
             for (int n = 0; n <= currentMaxAdjacentCells; n++)
             {
                 HTMLTableRowElement row = new HTMLTableRowElement().AddTo(rulesTable);
@@ -605,6 +575,44 @@ namespace CustomizableGameofLife
                     CreateCheckbox().AddTo(new HTMLTableDataCellElement().AddTo(row)).SetBoolValue(deadRules[n])
                 ));
             }
+        }
+
+        public static void Main ()
+        {
+            object rulesObjectStr = Global.LocalStorage.GetItem("rules");
+            if (rulesObjectStr is string r)
+            {
+                try
+                {
+                    dynamic rulesObj = JSON.Parse(r);
+                    if (rulesObjectStr != null)
+                    {
+                        if (Script.Write("{0} instanceof Array", rulesObj.livingRules))
+                        {
+                            bool[] deserialized = JsonConvert.DeserializeObject<bool[]>(JSON.Stringify(rulesObj.livingRules));
+                            Array.Copy(deserialized, livingRules, deserialized.Length);
+                        }
+                        if (Script.Write("{0} instanceof Array", rulesObj.deadRules))
+                        {
+                            bool[] deserialized = JsonConvert.DeserializeObject<bool[]>(JSON.Stringify(rulesObj.deadRules));
+                            Array.Copy(deserialized, deadRules, deserialized.Length);
+                        }
+                        if (Script.Write("{0} instanceof Array", rulesObj.adjacencyRules))
+                        {
+                            AdjacencyType[] deserialized = JsonConvert.DeserializeObject<AdjacencyType[]>(JSON.Stringify(rulesObj.adjacencyRules));
+                            Array.Copy(deserialized, adjacencyRules, deserialized.Length);
+                        }
+                    }
+                }
+                catch { }
+            }
+            Document.Body.Style["user-select"] = "none";
+            Document.Head.AppendChild(new HTMLLinkElement { Rel = "stylesheet", Href = "https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" });
+            Document.Body.Style.Margin = "0px";
+            Document.Body.AppendChild(PopupContainer);
+            Document.Body.AppendChild(new HTMLStyleElement { InnerHTML = "td, th { border: 1px solid black; padding: 5px } button { margin-right: 5px }" });
+
+            SetupSettingsDiv();
 
             List<(string name, bool[] livingRules, bool[] deadRules)> presetsList = new List<(string name, bool[] livingRules, bool[] deadRules)>()
             {
@@ -661,11 +669,11 @@ namespace CustomizableGameofLife
                 ClassName = "btn btn-primary",
                 OnClick = e =>
                 {
-                    for (int n = 0; n < maxAdjacentCells; n++)
+                    for (int n = 0; n < currentMaxAdjacentCells; n++)
                     {
                         adjacencyRules[n] = adjacencyRulesCells[n].AdjacencyValue();
                     }
-                    for (int n = 0; n <= maxAdjacentCells; n++)
+                    for (int n = 0; n <= currentMaxAdjacentCells; n++)
                     {
                         livingRules[n] = optionCells[n].Item1.BoolValue();
                         deadRules[n] = optionCells[n].Item2.BoolValue();
