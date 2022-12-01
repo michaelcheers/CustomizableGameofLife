@@ -94,6 +94,8 @@ namespace CustomizableGameofLife
         public static extern T SetCustomValidity<T>(this T element, string message) where T : HTMLElement;
         [Template("(e => (e.setAttribute('list', {datalistID}), e))({element})")]
         public static extern HTMLInputElement SetDataList(this HTMLInputElement element, string datalistID);
+
+        public static void Clear (this HTMLElement element) => element.InnerHTML = "";
         //[Template("{elem}.appendChild({adding})")]
         //public static extern T Append<T> (this Node elem, T adding);
 

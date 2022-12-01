@@ -253,7 +253,8 @@ namespace CustomizableGameofLife
                     Left = "25%",
                     Width = "50%",
                     Height = "100%",
-                    Display = Display.None
+                    Display = Display.None,
+                    Overflow = Overflow.Scroll
                 }
             };
 
@@ -287,8 +288,8 @@ namespace CustomizableGameofLife
 
         public static bool playing = false;
 
-        public static bool[] livingRules   = new bool[9] { false, false, true, true, false, false, false, false, false };
-        public static bool[] deadRules     = new bool[9] { false, false, false, true, false, false, false, false, false };
+        public static bool[] livingRules = new bool[maxAdjacentCells + 1] { false, false, true, true, false, false, false, false, false, false, false, false, false };
+        public static bool[] deadRules     = new bool[maxAdjacentCells + 1] { false, false, false, true, false, false, false, false, false, false, false, false, false };
         public static AdjacencyType[] adjacencyRules = new AdjacencyType[maxAdjacentCells] { AdjacencyType.One, AdjacencyType.One, AdjacencyType.One, AdjacencyType.One, AdjacencyType.One, AdjacencyType.One, AdjacencyType.One, AdjacencyType.One, AdjacencyType.One, AdjacencyType.One, AdjacencyType.One, AdjacencyType.One };
 
         public static HTMLCanvasElement CreateCanvas ()
@@ -515,6 +516,8 @@ namespace CustomizableGameofLife
                 new HTMLOptionElement { Value = "2" }.Add("2")
             );
 
+        public static HTMLDivElement adjacencyRulesTableDiv = new HTMLDivElement(), rulesTableDiv = new HTMLDivElement();
+
         public static void Main ()
         {
             object rulesObjectStr = Global.LocalStorage.GetItem("rules");
@@ -526,11 +529,20 @@ namespace CustomizableGameofLife
                     if (rulesObjectStr != null)
                     {
                         if (Script.Write("{0} instanceof Array", rulesObj.livingRules))
-                            livingRules = JsonConvert.DeserializeObject<bool[]>(JSON.Stringify(rulesObj.livingRules));
+                        {
+                            bool[] deserialized = JsonConvert.DeserializeObject<bool[]>(JSON.Stringify(rulesObj.livingRules));
+                            Array.Copy(deserialized, livingRules, deserialized.Length);
+                        }
                         if (Script.Write("{0} instanceof Array", rulesObj.deadRules))
-                            deadRules = JsonConvert.DeserializeObject<bool[]>(JSON.Stringify(rulesObj.deadRules));
+                        {
+                            bool[] deserialized = JsonConvert.DeserializeObject<bool[]>(JSON.Stringify(rulesObj.deadRules));
+                            Array.Copy(deserialized, deadRules, deserialized.Length);
+                        }
                         if (Script.Write("{0} instanceof Array", rulesObj.adjacencyRules))
-                            adjacencyRules = JsonConvert.DeserializeObject<int[]>(JSON.Stringify(rulesObj.adjacencyRules));
+                        {
+                            AdjacencyType[] deserialized = JsonConvert.DeserializeObject<AdjacencyType[]>(JSON.Stringify(rulesObj.adjacencyRules));
+                            Array.Copy(deserialized, adjacencyRules, deserialized.Length);
+                        }
                     }
                 }
                 catch { }
@@ -543,22 +555,35 @@ namespace CustomizableGameofLife
 
             HTMLTableElement adjacencyRulesTable = new HTMLTableElement { Style = { MarginLeft = "auto", MarginRight = "auto" } };
             {
-                int n = 0;
-                for (int y = 0; y < 3; y++)
+                if (Grid is TriangleGrid)
                 {
-                    HTMLTableRowElement row = new HTMLTableRowElement().AddTo(adjacencyRulesTable);
-                    for (int x = 0; x < 3; x++)
+                    for (int n = 0; n < 12; n++)
                     {
-                        if (x == 1 && y == 1)
+                        string name = n < 6 ? ((TriangleLocation)n).ToCamelString() : $"Position {n}";
+                        adjacencyRulesCells.Add(Create012Selector().AddTo(new HTMLTableDataCellElement().AddTo(new HTMLTableRowElement().Add(new HTMLTableDataCellElement().Add(name)).AddTo(adjacencyRulesTable))).SetAdjacencyValue(adjacencyRules[n]));
+                    }
+                }
+                else
+                {
+                    int n = 0;
+                    for (int y = 0; y < 3; y++)
+                    {
+                        HTMLTableRowElement row = new HTMLTableRowElement().AddTo(adjacencyRulesTable);
+                        for (int x = 0; x < 3; x++)
                         {
-                            row.AppendChild(new HTMLTableDataCellElement());
-                            continue;
+                            if (x == 1 && y == 1)
+                            {
+                                row.AppendChild(new HTMLTableDataCellElement());
+                                continue;
+                            }
+                            adjacencyRulesCells.Add(Create012Selector().AddTo(new HTMLTableDataCellElement().AddTo(row)).SetAdjacencyValue(adjacencyRules[n]));
+                            n++;
                         }
-                        adjacencyRulesCells.Add(Create012Selector().AddTo(new HTMLTableDataCellElement().AddTo(row)).SetAdjacencyValue(adjacencyRules[n]));
-                        n++;
                     }
                 }
             }
+            adjacencyRulesTableDiv.Clear();
+            adjacencyRulesTableDiv.Add(adjacencyRulesTable);
 
             HTMLTableElement rulesTable = new HTMLTableElement { Style = { MarginLeft = "auto", MarginRight = "auto" } }.Add(
                 new HTMLTableRowElement().Add(
@@ -567,6 +592,9 @@ namespace CustomizableGameofLife
                     new HTMLTableHeaderCellElement().Add("D")
                 )
             );
+
+            rulesTableDiv.Clear();
+            rulesTableDiv.Add(rulesTable);
 
             for (int n = 0; n <= currentMaxAdjacentCells; n++)
             {
@@ -620,11 +648,11 @@ namespace CustomizableGameofLife
             SettingsPopup.Add(
                 new HTMLDetailsElement { Open = true}.Add(
                     new HTMLSummaryElement().Add("Adjacency Rules"),
-                    adjacencyRulesTable
+                    adjacencyRulesTableDiv
                 ),
                 new HTMLDetailsElement { Open = true }.Add(
                     new HTMLSummaryElement().Add("Rules"),
-                    rulesTable
+                    rulesTableDiv
                 )
             );
             SettingsPopup.Add(new HTMLBRElement(), presetsDiv, new HTMLBRElement());
