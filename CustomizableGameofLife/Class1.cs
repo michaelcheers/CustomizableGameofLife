@@ -65,7 +65,7 @@ namespace CustomizableGameofLife
             .Add(NextGridTypeButton = new HTMLButtonElement
             {
                 ClassName = "btn btn-primary", OnClick = e => NextGridType()
-            }.Add(GridType.Square.ToCamelString()))
+            }.Add(GridType.Triangle.ToCamelString()))
 
             .Add(NextSquareTypeButton = new HTMLButtonElement
             {
