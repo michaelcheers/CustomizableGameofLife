@@ -75,7 +75,7 @@ namespace CustomizableGameofLife
 
             foreach (CoordType coords in adding)
             {
-                Squares.Add(coords, SquareType.Cell);
+                Squares.TryAdd(coords, SquareType.Cell);
             }
         }
 
