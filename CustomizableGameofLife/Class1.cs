@@ -950,30 +950,33 @@ namespace CustomizableGameofLife
                 DOMCanvasContext.FillStyle = "red"; //"rgb(170, 170, 170)";
                 DOMCanvasContext.Fill();
             }
-            //foreach (((int x, int y) pos, DividersInfo dividers) in Dividers)
-            //{
-            //    foreach (var divider in new[] { DividersInfo.BottomRight, DividersInfo.Right, DividersInfo.Bottom })
-            //    {
-            //        if (!dividers.HasFlag(divider))
-            //            continue;
-            //        switch (divider)
-            //        {
-            //            case DividersInfo.Right:
-            //                (int x, int y) startPos = ((int)(pos.x + 1), (int)pos.y);
-            //                (int x, int y) endPos = ((int)(pos.x + 1), (int)(pos.y + 1));
-            //                DrawLine(GetFinalDrawPos(startPos), GetFinalDrawPos(endPos));
-            //                break;
-            //            case DividersInfo.Bottom:
-            //                DrawLine(GetFinalDrawPos(((int)(pos.x), (int)(pos.y + 1))), GetFinalDrawPos(((int)(pos.x + 1), (int)(pos.y + 1))));
-            //                break;
-            //            case DividersInfo.BottomRight:
-            //                DrawMarker(GetFinalDrawPos(((int)(pos.x + 1), (int)(pos.y + 1))));
-            //                break;
-            //            default:
-            //                throw new InvalidOperationException();
-            //        }
-            //    }
-            //}
+            if (Grid is SquareGrid s)
+            {
+                foreach (((int x, int y) pos, DividersInfo dividers) in s.Dividers)
+                {
+                    foreach (var divider in new[] { DividersInfo.BottomRight, DividersInfo.Right, DividersInfo.Bottom })
+                    {
+                        if (!dividers.HasFlag(divider))
+                            continue;
+                        switch (divider)
+                        {
+                            case DividersInfo.Right:
+                                (int x, int y) startPos = ((int)(pos.x + 1), (int)pos.y);
+                                (int x, int y) endPos = ((int)(pos.x + 1), (int)(pos.y + 1));
+                                DrawLine(GetFinalDrawPos(startPos), GetFinalDrawPos(endPos));
+                                break;
+                            case DividersInfo.Bottom:
+                                DrawLine(GetFinalDrawPos(((int)(pos.x), (int)(pos.y + 1))), GetFinalDrawPos(((int)(pos.x + 1), (int)(pos.y + 1))));
+                                break;
+                            case DividersInfo.BottomRight:
+                                DrawMarker(GetFinalDrawPos(((int)(pos.x + 1), (int)(pos.y + 1))));
+                                break;
+                            default:
+                                throw new InvalidOperationException();
+                        }
+                    }
+                }
+            }
         }
 
         public static int frameNum = 0;
