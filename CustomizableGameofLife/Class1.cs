@@ -901,7 +901,7 @@ namespace CustomizableGameofLife
                     if (!drawPos.HasValue)
                         return;
                     DOMCanvasContext.FillStyle = $"rgba(0, 0, 0, {GetSquareTypeAlpha(squareType) / 255.0})";
-                    DOMCanvasContext.DrawTriangle(drawPos.Value.drawX, drawPos.Value.drawY, xMultiplier / 2, coords.n);
+                    DOMCanvasContext.DrawTriangle(drawPos.Value.drawX, drawPos.Value.drawY, xMultiplier * 2 / 3, coords.n);
                 });
             }
             DOMCanvasContext.ImageSmoothingEnabled = false;
@@ -1004,12 +1004,13 @@ namespace CustomizableGameofLife
 
         public static void DrawHexagon (this CanvasRenderingContext2D context, int x, int y, int radius, bool stroke = false)
         {
+            double doubleRadius = (double)radius * 34 / 40;
             context.BeginPath();
-            context.MoveTo(x + radius, y);
+            context.MoveTo(x + doubleRadius, y);
             for (int n = 1; n <= 6; n++)
             {
                 double angle = n * Math.PI / 3;
-                context.LineTo(x + radius * Math.Cos(angle), y + radius * Math.Sin(angle));
+                context.LineTo(x + doubleRadius * Math.Cos(angle), y + doubleRadius * Math.Sin(angle));
             }
             if (stroke)
                 context.Stroke();
@@ -1045,6 +1046,8 @@ namespace CustomizableGameofLife
                 default:
                     throw new InvalidOperationException();
             }
+            hexRadius *= 9;
+            hexRadius /= 10;
             double angle = angleInt * Math.PI / 180;
             context.LineTo(hexX + hexRadius * Math.Cos(angle), hexY + hexRadius * Math.Sin(angle));
             angle += Math.PI / 3;
