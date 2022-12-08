@@ -249,7 +249,7 @@ namespace CustomizableGameofLife
                b = (sqrt(3) x - 3 y)/(3 k)
             */
 
-            return ((int)(-(Math.Sqrt(3) * x + 3 * y) / (3 * App.xMultiplier)), (int)((Math.Sqrt(3) * x - 3 * y) / (3 * App.xMultiplier)));
+            return ((int)(-(Math.Sqrt(3) * x + 3 * y) / (3 * App.xMultiplier) - 0.5), (int)((Math.Sqrt(3) * x - 3 * y) / (3 * App.xMultiplier) - 0.5));
         }
 
         public override int NumberOfAdjacentCells((int c0, int c1) coords, Action<(int c0, int c1)> emptyAdjAction = null)
