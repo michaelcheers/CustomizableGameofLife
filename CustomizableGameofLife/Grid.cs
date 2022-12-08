@@ -1,5 +1,4 @@
-﻿using Bridge.Html5;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -243,9 +242,9 @@ namespace CustomizableGameofLife
                k = App.xMultiplier
                a = _60l
                b = _60r
-               
+
                Solve x = (-a + b) * k * sin60;y = -(a+ b) * k * cos60 for (a, b) (https://www.wolframalpha.com/input?i=solve+x+%3D+%28-a+%2B+b%29+*+k+*+sin60%3By+%3D+-%28a%2B+b%29+*+k+*+cos60+for+a+and+b)
-            
+
                a = -(sqrt(3) x + 3 y)/(3 k)
                b = (sqrt(3) x - 3 y)/(3 k)
             */
@@ -353,18 +352,18 @@ namespace CustomizableGameofLife
             double board_60l = -(Math.Sqrt(3) * x + 3 * y) / (3 * App.xMultiplier),
                    board_60r =  (Math.Sqrt(3) * x - 3 * y) / (3 * App.xMultiplier);
 
-            double NegMod1(double a) => (a % 1 + 1) % 1;
+            double NegMod1(double a) => ((a % 1) + 1) % 1;
 
-            double _60lMod1 = NegMod1(board_60l),
-                   _60rMod1 = NegMod1(board_60r);
+            double _60lMod1 = NegMod1(board_60l - 0.5),
+                   _60rMod1 = NegMod1(board_60r - 0.5);
 
             TriangleLocation n = _60rMod1 <= (1.0 / 2)
-                ? _60lMod1 <= (1.0 / 3) ? TriangleLocation.Bottom :
-                    _60lMod1 <= (2.0 / 3) ? TriangleLocation.BottomLeft :
-                                                 TriangleLocation.TopLeft
-                : _60lMod1 <= (1.0 / 3) ? TriangleLocation.BottomRight :
+                ? _60lMod1 <= (1.0 / 3) ? TriangleLocation.Top :
                     _60lMod1 <= (2.0 / 3) ? TriangleLocation.TopRight :
-                                                 TriangleLocation.Top;            
+                                                 TriangleLocation.BottomRight
+                : _60lMod1 <= (1.0 / 3) ? TriangleLocation.TopLeft :
+                    _60lMod1 <= (2.0 / 3) ? TriangleLocation.BottomLeft :
+                                                 TriangleLocation.Bottom;            
             return ((int)Math.Round(board_60l), (int)Math.Round(board_60r), n);
         }
 
